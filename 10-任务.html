@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 任务</title>
+<!-- P10 任务：列表和看板两种看法（看板按状态分列）。网址带 ?center=commerce 时带中心侧栏，#board 直接打开看板。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  .filters{display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;margin-bottom:var(--sp-3)}
+  .filters .select{width:auto;height:34px;font-size:var(--fs-13)}
+  .tbl td b{font-weight:600}
+  .tbl .ai{display:flex;align-items:center;gap:8px;white-space:nowrap}
+  .tbl .ai img{width:24px;height:24px;object-fit:contain}
+  #body.board{background:none;border:0;box-shadow:none}
+  .board-g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-3);align-items:start}
+  .col{border-radius:var(--r-card);background:rgb(var(--rgb-tint) / .025);border:1px solid var(--divider);padding:var(--sp-3);min-height:240px}
+  .col .ch{display:flex;align-items:center;gap:8px;padding:2px 4px 10px;font-size:var(--fs-13);font-weight:600}
+  .col .ch .n{margin-left:auto;font-size:var(--fs-12);color:var(--text-3);font-weight:400}
+  .col .ch i{width:8px;height:8px;border-radius:50%;background:var(--k)}
+  .tk{display:block;padding:12px;margin-top:8px;border-radius:12px;background:var(--surface-1);border:1px solid var(--divider);color:inherit;cursor:pointer;transition:border-color var(--t-hover),transform var(--t-hover)}
+  .tk:hover{border-color:rgba(242,181,68,.4);transform:translateY(-1px)}
+  .tk b{display:block;font-size:var(--fs-13);font-weight:600} .tk .s{display:block;font-size:var(--fs-12);color:var(--text-3);margin-top:4px;line-height:1.5}
+  .tk .f{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:var(--fs-12);color:var(--text-3)}
+  .tk .f img{width:22px;height:22px;object-fit:contain} .tk .f .sp{flex:1}
+  /* 手机：表格改成一条一张卡片（任务名一行，状态、AI 员工、负责、时间排在下面） */
+  @media (max-width:767px){
+    #body .tbl thead{display:none}
+    #body .tbl,#body .tbl tbody{display:block}
+    #body .tbl tr{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--divider)}
+    #body .tbl td{display:block;padding:0;border:0}
+    #body .tbl td:first-child{grid-column:1/-1}
+    #body .tbl td:nth-child(4){color:var(--text-3);font-size:var(--fs-12)}
+    #body .tbl td:last-child{grid-column:1/-1;font-size:var(--fs-12)}
+  }
+  @media (max-width:1279px){ .board-g{grid-template-columns:repeat(2,minmax(0,1fr))} }
+  @media (max-width:767px){ .board-g{grid-template-columns:minmax(0,1fr)} }
+</style>
+</head>
+<body>
+<main class="main" id="page">
+  <div class="page-h"><div><h1>任务</h1><div class="sub">每件事从 AI 员工复盘、初审、拍板到执行生效，状态都在这里</div></div>
+    <div class="acts"><div class="seg" id="view"><button data-v="list">列表</button><button data-v="board">看板</button></div></div></div>
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div class="filters"><select class="select" id="f-store" aria-label="店铺"><option value="">全部店铺</option></select><select class="select" id="f-owner" aria-label="负责人"><option value="">全部负责人</option></select></div>
+  <section class="card" id="body"></section>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, q, taskSt, ai, member, store, img, states} = OS;
+  OS.shell({active: 'tasks', side: q.get('center') ? 'tasks' : null});
+  const ST = ['全部', '待拍板', '执行中', '已完成', '失败'];
+  let tab = '全部', fs = '', fo = '', view = location.hash === '#board' ? 'board' : 'list';
+  const viewBtns = () => $$('#view button').forEach(b => { b.classList.toggle('on', b.dataset.v === view); b.onclick = () => { view = b.dataset.v; history.replaceState(null, '', view === 'board' ? '#board' : location.pathname + location.search); render(); }; });
+  $('#f-store').innerHTML += D.stores.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  $('#f-owner').innerHTML += [D.people.boss, ...D.people.members].map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+  $('#f-store').onchange = e => { fs = e.target.value; render(); };
+  $('#f-owner').onchange = e => { fo = e.target.value; render(); };
+  let state = '正常';
+  function render(s = state){
+    state = s; viewBtns();
+    $('#tabs').hidden = view === 'board';
+    $('#tabs').innerHTML = ST.map(t => `<button role="tab" class="${t === tab ? 'on' : ''}" data-t="${t}">${t}<span class="n num">${t === '全部' ? D.tasks.length : D.tasks.filter(x => x.status === t).length}</span></button>`).join('');
+    $$('#tabs button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
+    const B = $('#body');
+    if (s === '加载中') return B.innerHTML = '<div style="padding:16px">' + states.loading(5) + '</div>';
+    if (s === '出错') return B.innerHTML = '<div style="padding:16px">' + states.error({what: '任务列表没加载出来', why: '服务器暂时连不上'}) + '</div>';
+    B.classList.toggle('board', view === 'board');
+    const rows = s === '没有数据' ? [] : D.tasks.filter(t => (view === 'board' || tab === '全部' || t.status === tab) && (!fs || t.store === fs) && (!fo || t.owner === fo));
+    if (!rows.length) return B.innerHTML = states.empty({img: 'empty-task.webp', title: s === '没有数据' ? '还没有任务' : '没有符合条件的任务', text: '每天 15:00 每日巡检会自动发起广告复盘；也可以在小投工作台手动发起。', act: '<a class="btn" href="05-小投工作台.html#idle">去发起一次复盘</a>'});
+    if (view === 'board') {
+      const COLS = [['待拍板', '--wait'], ['执行中', '--brand'], ['已完成', '--ok'], ['失败', '--error']];
+      B.innerHTML = `<div class="board-g">${COLS.map(([c, k]) => { const L = rows.filter(t => t.status === c); return `<div class="col"><div class="ch" style="--k:var(${k})"><i></i>${c}<span class="n num">${L.length}</span></div>
+        ${L.map(t => { const A = ai(t.ai); return `<a class="tk" tabindex="0" data-run="${t.run || ''}"><b>${t.name}</b><span class="s">${t.store ? store(t.store).name + ' · ' : ''}${t.sub}</span>
+          <span class="f"><img src="${img(A.img)}" alt="">${A.name}<span class="sp"></span>${member(t.owner).name} · ${t.time}</span></a>`; }).join('') || '<p class="t3 fs-12" style="padding:12px 4px">没有</p>'}</div>`; }).join('')}</div>`;
+      $$('.tk').forEach(r => r.onclick = r.onkeydown = e => { if (e.type === 'keydown' && e.key !== 'Enter') return; location.href = OS.withAs(`11-运行详情.html?run=${r.dataset.run || 'R-20261119-003'}`); });
+      return;
+    }
+    B.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>任务</th><th>状态</th><th>AI 员工</th><th>负责</th><th>时间</th></tr></thead><tbody>
+      ${rows.map(t => { const A = ai(t.ai); return `<tr class="link" tabindex="0" data-run="${t.run || ''}"><td><b>${t.name}</b>${t.store ? ` · ${store(t.store).name}` : ''}<span class="sub">${t.sub}</span></td>
+        <td>${taskSt(t.status)}</td><td><span class="ai"><img src="${img(A.img)}" alt="">${A.name}</span></td><td>${member(t.owner).name}</td><td class="t3 nowrap">${t.time}</td></tr>`; }).join('')}
+      </tbody></table></div>`;
+    $$('tr.link').forEach(r => r.onclick = r.onkeydown = e => { if (e.type === 'keydown' && e.key !== 'Enter') return; location.href = OS.withAs(`11-运行详情.html?run=${r.dataset.run || 'R-20261119-003'}`); });
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>

@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 小测工作台</title>
+<!-- P05b 小测工作台（架构页面清单 4b）。两个场景：测款复盘（到复盘日出结论）、测款计划（定本轮标准，主管确认）。
+     结论只有四种，原文照抄脚本 trial-review：达到本轮标准，进入补货评估 / 继续观察，暂不判定 / 未达本轮标准，先调整或评估停止投入 / 资料或标准不足，暂不判定。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<link rel="stylesheet" href="assets/schedule.css">
+<style>
+  .head{display:flex;align-items:center;gap:var(--sp-4);flex-wrap:wrap}
+  .head img{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(0,0,0,.4))}
+  .head .who{font-size:var(--fs-13);color:var(--text-2);margin-top:4px;display:flex;gap:var(--sp-3);flex-wrap:wrap;align-items:center}
+  .verdicts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-3);margin-bottom:var(--sp-4)}
+  .vd{padding:var(--sp-3) var(--sp-4);border-radius:var(--r-card);background:var(--surface-1);border:1px solid var(--divider);cursor:pointer;text-align:left;font:inherit;color:inherit;transition:border-color var(--t-hover),background var(--t-hover)}
+  .vd:hover{background:var(--surface-2)}
+  .vd.on{border-color:color-mix(in srgb,var(--k) 60%,transparent);background:color-mix(in srgb,var(--k) 8%,var(--surface-1))}
+  .vd b{display:block;font-size:var(--fs-24);font-weight:600;color:var(--k)}
+  .vd span{display:block;font-size:var(--fs-12);color:var(--text-2);line-height:var(--lh);margin-top:2px}
+  .vd small{display:block;font-size:var(--fs-11);color:var(--text-3);margin-top:4px}
+  .mets{display:grid;grid-template-columns:auto auto;gap:2px var(--sp-4);font-size:var(--fs-12);white-space:nowrap}
+  .mets .m{color:var(--text-3)} .mets .m b{font-weight:500;color:var(--text-1)} .mets .m.bad b{color:var(--error)} .mets .m.na b{color:var(--wait)}
+  .next{font-size:var(--fs-12);color:var(--text-2);max-width:240px}
+  .tbl td:first-child b{white-space:nowrap}
+  /* 结论：原文照抄脚本，用彩色圆点 + 文字，不铺色块（表格里一眼扫过不压人） */
+  .verdict{position:relative;display:block;max-width:230px;padding-left:15px;font-size:var(--fs-12);line-height:1.5;color:var(--k);font-weight:500}
+  .verdict::before{content:"";position:absolute;left:0;top:5px;width:8px;height:8px;border-radius:50%;background:var(--k);box-shadow:0 0 8px color-mix(in srgb,var(--k) 60%,transparent)}
+  .verdict i{font-style:normal;display:block;font-weight:400;color:var(--text-3)}
+  .runs .li{display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:4px var(--sp-3);align-items:center;padding:12px 0;border-top:1px solid var(--divider)}
+  .runs .li:first-child{border-top:0}
+  .runs .li b{font-size:var(--fs-13)} .runs .li .s{font-size:var(--fs-12);color:var(--text-3)}
+  .runs .pg{height:6px;border-radius:3px;background:rgb(var(--rgb-tint) / .07);overflow:hidden} .runs .pg i{display:block;height:100%;border-radius:3px;background:var(--k)}
+  .runs .r{grid-column:2;grid-row:1/span 2;text-align:right;font-size:var(--fs-12);color:var(--text-3)}
+  .cmp{display:grid;grid-template-columns:72px minmax(0,1fr) 120px;gap:10px var(--sp-3);align-items:center;font-size:var(--fs-13)}
+  .cmp .bar{position:relative;height:8px;border-radius:4px;background:rgb(var(--rgb-tint) / .07)}
+  .cmp .bar i{position:absolute;inset:0 auto 0 0;border-radius:4px;background:var(--ok)}
+  .cmp .bar i.bad{background:var(--error)} .cmp .bar i.na{background:var(--off)}
+  .cmp .bar b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text-1);opacity:.75}
+  .cmp .v{text-align:right;color:var(--text-2)} .cmp .v b{color:var(--text-1);font-weight:600}
+  .say{padding:var(--sp-3) var(--sp-4);border-radius:var(--r-card);background:color-mix(in srgb,var(--brand) 7%,var(--surface-1));border:1px solid color-mix(in srgb,var(--brand) 22%,transparent);font-size:var(--fs-13);line-height:var(--lh-loose);color:var(--text-2)}
+  .say .from{display:flex;align-items:center;gap:8px;font-size:var(--fs-12);color:var(--text-3);margin-bottom:6px}
+  .say .from img{width:22px;height:22px;object-fit:contain}
+  .plan{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:var(--sp-4);align-items:start}
+  .plan .fields{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3) var(--sp-4)}
+  .plan .fields .full{grid-column:1/-1}
+  .rule{font-size:var(--fs-12);color:var(--text-3);margin-top:var(--sp-3);line-height:var(--lh-loose)}
+  @media (max-width:1279px){ .verdicts{grid-template-columns:1fr 1fr} .plan{grid-template-columns:minmax(0,1fr)} }
+  @media (max-width:767px){ .mets{grid-template-columns:auto} .plan .fields{grid-template-columns:minmax(0,1fr)} }
+</style>
+</head>
+<body class="wb" data-as="m-zs">
+<main class="main" id="page">
+  <section class="pagebar flush wbband"><span class="pb-bg" style="background-image:url(img/wb-xiaoce.webp);background-position:62% 50%"></span>
+    <div class="pb-who"><img src="img/avatar-xiaoce.webp" alt=""><div><div class="pb-crumb"><a href="05-小投工作台.html#home">工作台</a> / 小测</div><h1>小测 · 测款</h1><div class="pb-sub"><span class="dot live"></span>在岗 · 负责人 张三 · 只下结论，标准由主管王五定</div></div></div>
+    <div class="pb-pills"><span class="pill">本周 <b>9</b> 次</span><span class="pill">费用 <b>¥2.20</b></span><span class="pill">在测 <b>5</b> 个</span><a class="pill warn" href="08-等你拍板.html">等拍板 <b>1</b> 件</a></div>
+    <div class="pb-r"><div class="seg" id="sc" role="tablist"></div></div>
+  </section>
+  <div id="body"></div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, icon, ai, store, img, st, states, toast, drawer, confirm} = OS;
+  OS.shell({active: '', side: 'xiaoce'});
+  // 四种结论：原文照抄脚本；颜色只是辅助，文字是主
+  const V = [
+    ['达到本轮标准，进入补货评估', '--ok', '自动交给小补做补货评估，不等于批准采购'],
+    ['继续观察，暂不判定', '--wait', '样本不够，或退货还没观察充分'],
+    ['未达本轮标准，先调整或评估停止投入', '--error', '先调整交给小投；停止投入、追加预算要拍板'],
+    ['资料或标准不足，暂不判定', '--off', '写清缺什么、谁补'],
+  ];
+  const vk = v => (V.find(x => x[0] === v) || V[3])[1];
+  let scene = ['#plan', '#sched'].includes(location.hash) ? location.hash.slice(1) : 'review', filter = null, state = '正常';
+  const metric = (t, std, key) => {
+    const a = t.act[key], s = t.std[key];
+    if (a == null) return ['na', '缺'];
+    const bad = key === 'ret' ? a > s : a < s;
+    return [bad ? 'bad' : '', a];
+  };
+  const unit = {days: ' 天', orders: ' 单', margin: '%', ret: '%'};
+  const LAB = {days: '天数', orders: '订单', margin: '利润率', ret: '退货率'};
+  function mets(t){
+    return `<div class="mets">${['days', 'orders', 'margin', 'ret'].map(k => { const [c, v] = metric(t, t.std, k);
+      return `<span class="m ${c}">${LAB[k]} <b class="num">${v}${v === '缺' ? '' : unit[k]}</b> / ${k === 'ret' ? '≤' : '≥'}${t.std[k]}${unit[k]}</span>`; }).join('')}</div>`;
+  }
+  function tabs(){
+    $('#sc').innerHTML = [['review', '测款复盘'], ['plan', '测款计划'], ['sched', '定时']].map(([k, l]) => `<button role="tab" class="${k === scene ? 'on' : ''}" data-s="${k}">${l}</button>`).join('');
+    $$('#sc button').forEach(b => b.onclick = () => { scene = b.dataset.s; history.replaceState(null, '', '#' + scene); render(); });
+  }
+  function render(s = state){
+    state = s; tabs();
+    const B = $('#body');
+    if (s === '加载中') return B.innerHTML = `<div class="verdicts">${'<div class="skel" style="height:96px"></div>'.repeat(4)}</div>` + states.loading(4);
+    if (s === '出错') return B.innerHTML = states.error({what: '今天的测款复盘没跑成', why: '15:00 拉销量和退货时 noon 接口超时，15:40 会再试一次', next: '<button class="btn sm main">现在重跑</button>'});
+    if (scene === 'plan') return plan();
+    if (scene === 'sched') return sched();
+    if (s === '没有数据') return B.innerHTML = `<div class="card">${states.empty({img: 'empty-xiaoce.webp', title: '还没有在测的商品', text: '新品开测前先定测款计划：观察几天、最少几单、利润率和退货率门槛，主管确认后保存为本轮标准。到了复盘日，小测自动出结论。', act: '<a class="btn main" href="#plan" onclick="scene=\'plan\';render()">定一个测款计划</a>'})}</div>`;
+    const rows = D.trials.filter(t => !filter || t.verdict === filter);
+    B.innerHTML = OS.say('xiaoce', '今天 15:07', '复盘了 5 个：<b class="ok">运动水壶</b>达标，已交给小补做补货评估；<b class="bad">吸管杯</b>两轮都没起来，停还是追加 SAR 300 等拍板；<b>硅胶杯盖</b>展示太少，交小投加价 10% 再测 7 天；<b>儿童保温杯</b>缺单件毛利，先不判。', '<a class="btn main" href="08-等你拍板.html">去等你拍板</a>') + `<div class="verdicts">${V.map(([v, k, d]) => { const n = D.trials.filter(t => t.verdict === v).length;
+        return `<button class="vd ${filter === v ? 'on' : ''}" style="--k:var(${k})" data-v="${v}"><b class="num">${n}</b><span>${v}</span><small>${d}</small></button>`; }).join('')}</div>
+      <section class="card"><div class="card-h"><h3>今天 15:07 的测款复盘</h3><span class="t3 fs-12">结论由脚本按本轮标准算出，小测只写理由${filter ? ` · 只看「${filter}」 <a href="#" id="clr" class="warn">看全部</a>` : ''}</span></div>
+        <div class="card-b tbl-wrap"><table class="tbl"><thead><tr><th>商品</th><th>本轮</th><th>实际 / 本轮标准</th><th class="r">花费 / 预算</th><th>结论</th><th>下一步</th></tr></thead><tbody>
+        ${rows.map(t => `<tr class="link" tabindex="0" data-sku="${t.sku}"><td><b>${t.name}</b><span class="sub">${t.sku} · ${store(t.store).name}</span></td>
+          <td class="nowrap">第 ${t.round} 轮<span class="sub">${t.start} 开测 · ${t.review} 复盘</span></td><td>${mets(t)}</td>
+          <td class="r num nowrap">SAR ${t.spent}<span class="sub">/ ${t.budget}</span></td>
+          <td><span class="verdict" style="--k:var(${t.k === 'ok' ? '--ok' : t.k === 'wait' ? '--wait' : t.k === 'err' ? '--error' : '--off'})">${t.verdict}${t.step ? `<i>下一步：${t.step}</i>` : ''}</span></td>
+          <td class="next">${t.next}</td></tr>`).join('')}
+        </tbody></table></div></section>
+      <p class="rule">本轮标准由主管确认；改标准就开新一轮，不改正在测的这一轮。达到本轮标准的商品自动进入小补的补货评估，要不要采购仍按补货申请走拍板。</p>`;
+    $$('.vd').forEach(b => b.onclick = () => { filter = filter === b.dataset.v ? null : b.dataset.v; render(); });
+    if ($('#clr')) $('#clr').onclick = e => { e.preventDefault(); filter = null; render(); };
+    $$('tr[data-sku]').forEach(r => r.onclick = r.onkeydown = e => { if (e.type === 'keydown' && e.key !== 'Enter') return; detail(D.trials.find(t => t.sku === r.dataset.sku)); });
+  }
+  const SAY = {
+    H039: '14 天 41 单，利润率 22%、退货率 2.4%，四项都过了本轮标准。已交给小补做补货评估：按测款期日销 3 单算还能卖 19 天，小补建议先不补，7 天后再算。',
+    H091: '才测了 7 天、12 单，离 14 天 30 单还远；利润率 20% 在线上。样本不够，先不下结论，11/26 再复盘。',
+    H052: '第 2 轮 14 天只有 9 单（要 20 单），利润率 6%（要 15%），退货率 7%（上限 5%）。第 1 轮也只有 11 单。两轮都没起来，小测建议评估停止投入；要不要停、还是追加 SAR 300 再测一轮，需要拍板（在王五的授权内，王五或决策层都能定）。',
+    H095: '利润率 24% 很好，退货 0，但 9 天只有 8 单。看小投的数据，广告展示太少（日均 180 次）。建议先调整：小投把出价加 10%（在运营权限内），再测 7 天。',
+    H097: '订单和退货都过线了，但商品库里没有单件毛利，算不出利润率，所以不下结论。请张三在商品库补上单件毛利，补完小测马上重判。',
+  };
+  function detail(t){
+    const k = t.k === 'ok' ? '--ok' : t.k === 'wait' ? '--wait' : t.k === 'err' ? '--error' : '--off';
+    const bar = key => { const a = t.act[key], s = t.std[key], mx = Math.max(a || 0, s) * 1.4 || 1, [c] = metric(t, t.std, key);
+      return `<span>${LAB[key]}</span><div class="bar"><i class="${c}" style="width:${a == null ? 4 : a / mx * 100}%"></i><b style="left:${s / mx * 100}%"></b></div><span class="v">${a == null ? '<b style="color:var(--wait)">缺资料</b>' : `<b class="num">${a}${unit[key]}</b>`} / ${s}${unit[key]}</span>`; };
+    const act = {
+      ok: `<a class="btn main" href="05c-小补工作台.html#eval">看小补的补货评估</a>`,
+      wait: `<button class="btn" data-x="remind">${icon('cal')}11/26 提醒我</button>`,
+      err: t.step === '先调整' ? `<button class="btn main" data-x="adj">交给小投加价 10%</button><button class="btn">改成评估停止投入</button>` : `<a class="btn main" href="08-等你拍板.html">已提交拍板 · 去看</a>`,
+      off: `<a class="btn main" href="05-小投工作台.html#prod">去商品库补单件毛利</a>`,
+    }[t.k];
+    const d = drawer({sub: `${t.sku} · ${store(t.store).name} · 第 ${t.round} 轮`, title: t.name,
+      body: `<span class="verdict" style="--k:var(${k});font-size:var(--fs-13);max-width:none">${t.verdict}${t.step ? `<i>下一步：${t.step}</i>` : ''}</span>
+        <h4 class="section-h" style="margin-top:var(--sp-5)">实际和本轮标准</h4><div class="cmp">${['days', 'orders', 'margin', 'ret'].map(bar).join('')}</div>
+        <p class="hint" style="margin-top:8px">白线是本轮标准 · 退货率越低越好。本轮标准 ${t.confirm} 确认。</p>
+        <h4 class="section-h" style="margin-top:var(--sp-5)">理由</h4><div class="say"><div class="from"><img src="img/avatar-xiaoce.webp" alt="">小测 · 15:07</div>${SAY[t.sku]}</div>
+        <h4 class="section-h" style="margin-top:var(--sp-5)">花费</h4><p class="t2 fs-13">本轮测款预算 SAR ${t.budget}，已花 <b class="num">SAR ${t.spent}</b>（小投的广告花费）。</p>`,
+      foot: `<span class="sp"></span>${act}`});
+    $$('[data-x]', d.el).forEach(b => b.onclick = () => { d.close(); toast(b.dataset.x === 'adj' ? '已交给小投' : '已设好提醒', b.dataset.x === 'adj' ? '小投会把硅胶杯盖的出价加 10%，7 天后小测再复盘。' : '11/26 复盘时提醒你。'); });
+  }
+  function sched(){
+    $('#body').innerHTML = OS.schedTab('xiaoce', '小测排在小投、小补后面：要用小投的广告花费算利润。拉数据失败时小测会等着。');
+    OS.bindSched($('#body'));
+  }
+
+  function plan(){
+    $('#body').innerHTML = `<div class="plan">
+      <section class="card pad"><h3 style="margin-bottom:var(--sp-3)">新的测款计划</h3><div class="fields">
+        <label class="field full"><span>商品</span><select class="select"><option>H098 双层饭盒 · 云屿商店 · 沙特</option><option>H099 硅胶冰格 · 星帆商店 · 阿联酋</option></select><span class="hint">从商品库选；单件毛利缺了的话，复盘时只能「资料或标准不足，暂不判定」</span></label>
+        <label class="field"><span>开测日</span><input class="input num" value="11/20"></label>
+        <label class="field"><span>复盘日</span><input class="input num" value="12/04"></label>
+        <label class="field"><span>至少观察几天</span><input class="input num" value="14"></label>
+        <label class="field"><span>至少几单</span><input class="input num" value="30"></label>
+        <label class="field"><span>利润率下限</span><input class="input num" value="18%"></label>
+        <label class="field"><span>退货率上限</span><input class="input num" value="5%"></label>
+        <label class="field full"><span>测款预算</span><input class="input num" value="SAR 600"><span class="hint">小投按这个预算投广告；花完还没到复盘日，小测会提醒追加还是停（要拍板）</span></label>
+      </div><div class="row" style="margin-top:var(--sp-4);gap:var(--sp-2)"><span class="sp"></span><button class="btn">存草稿</button><button class="btn main" id="sub">提交主管确认</button></div></section>
+      <div><section class="card pad"><h3 style="margin-bottom:var(--sp-3)">等主管确认</h3>
+        <div class="list"><div class="li"><div class="m"><b>H096 便携榨汁杯 · 云屿商店 · 沙特</b><div class="s">14 天 · 30 单 · 利润率 ≥18% · 退货率 ≤5% · SAR 600</div></div><span class="st wait">等王五确认</span></div></div>
+        <p class="rule">确认后保存为本轮标准，开测那天起算。标准一旦确认，这一轮里不改；要改就开新一轮，两轮的数分开记，复盘时都能看到。</p></section>
+      <section class="card pad runs" style="margin-top:var(--sp-4)"><div class="row" style="margin-bottom:var(--sp-2)"><h3>本轮在测</h3><span class="sp"></span><a class="t3 fs-12" href="#review" id="toRev">看复盘 →</a></div>
+        ${D.trials.map(t => { const k = t.k === 'ok' ? '--ok' : t.k === 'wait' ? '--wait' : t.k === 'err' ? '--error' : '--off', pct = Math.min(100, t.act.days / t.std.days * 100);
+          return `<div class="li" style="--k:var(${k})"><b>${t.name} <span class="t3 fs-12" style="font-weight:400">· 第 ${t.round} 轮</span></b><span class="r"><span class="num">${t.act.days}/${t.std.days} 天</span><br>${t.review} 复盘</span><div class="pg"><i style="width:${pct}%"></i></div></div>`; }).join('')}</section></div></div>`;
+    $('#sub').onclick = () => toast('已提交主管确认', '王五确认后保存为本轮标准，12/04 小测自动复盘。');
+    $('#toRev').onclick = e => { e.preventDefault(); scene = 'review'; history.replaceState(null, '', '#review'); render(); };
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>

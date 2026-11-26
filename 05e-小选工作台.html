@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 小选工作台</title>
+<!-- P05e 小选工作台（选品，技能 noon-pick）。场景：算利润（沙特 FBN）、清货价、候选商品、定时。
+     数字都由脚本 calc-profit / clear-plan 算，不心算；利润只叫「毛估」（没算退货损失、长期仓储费）；读到的和估的分开标。做不做一个品由主管定。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<link rel="stylesheet" href="assets/schedule.css">
+<style>
+  .calc{display:grid;grid-template-columns:360px minmax(0,1fr);gap:var(--sp-4);align-items:start}
+  .inputs .pic{display:flex;gap:12px;align-items:center;margin-bottom:var(--sp-4)}
+  .inputs .pic img{width:72px;height:72px;border-radius:12px;object-fit:cover;background:#fff}
+  .inputs .pic b{display:block} .inputs .pic span{font-size:var(--fs-12);color:var(--text-3)}
+  .inp{display:grid;grid-template-columns:minmax(0,1fr) 140px;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--divider);font-size:var(--fs-13)}
+  .inp:first-of-type{border-top:0}
+  .inp label{color:var(--text-2);display:flex;align-items:center;gap:6px}
+  .inp .input{height:34px;text-align:right}
+  .est{font-size:10px;padding:0 6px;border-radius:5px;line-height:16px;color:var(--wait);background:color-mix(in srgb,var(--wait) 16%,transparent)}
+  .read{font-size:10px;padding:0 6px;border-radius:5px;line-height:16px;color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+  .verdict{padding:var(--sp-5);border-radius:var(--r-pop);background:linear-gradient(135deg,color-mix(in srgb,var(--ok) 14%,var(--surface-1)),var(--surface-1));border:1px solid color-mix(in srgb,var(--ok) 35%,transparent)}
+  .verdict h2{font-size:var(--fs-20);line-height:1.5} .verdict h2 b{color:var(--ok)}
+  .verdict p{font-size:var(--fs-13);color:var(--text-2);margin-top:6px}
+  .nums{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-3);margin-top:var(--sp-4)}
+  .nums div{padding:12px 14px;border-radius:var(--r-card);background:rgb(var(--rgb-deep) / .45)} .nums span{display:block;font-size:var(--fs-12);color:var(--text-3)} .nums b{display:block;font-size:var(--fs-20);margin-top:2px}
+  .wf{margin-top:var(--sp-4)}
+  .wf .r{display:grid;grid-template-columns:150px minmax(0,1fr) 100px;gap:12px;align-items:center;padding:8px 0;font-size:var(--fs-13)}
+  .wf .bar{height:14px;border-radius:4px;background:rgb(var(--rgb-tint) / .05);position:relative;overflow:hidden}
+  .wf .bar i{position:absolute;top:0;bottom:0;border-radius:4px}
+  .wf .r b{text-align:right;font-variant-numeric:tabular-nums}
+  .wf .r.tot{border-top:1px solid var(--divider);margin-top:4px;padding-top:12px}
+  .cands{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:var(--sp-3)}
+  .cd{border-radius:var(--r-card);overflow:hidden;background:var(--surface-1);border:1px solid var(--divider);display:flex;flex-direction:column}
+  .cd .p{position:relative;aspect-ratio:4/3;background:#fff}
+  .cd .p img{width:100%;height:100%;object-fit:contain;padding:12px;box-sizing:border-box}
+  .cd .p .rk{position:absolute;left:10px;top:10px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--brand);color:var(--text-on-brand);font-weight:700;font-size:13px}
+  .cd .b{padding:12px 14px;display:flex;flex-direction:column;gap:8px;flex:1}
+  .cd .b b{font-size:var(--fs-14)}
+  .cd .kv{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;font-size:var(--fs-12);color:var(--text-3)} .cd .kv em{font-style:normal;color:var(--text-1);font-variant-numeric:tabular-nums}
+  .cd .pm{font-size:var(--fs-20);font-weight:700}
+  .cd .warn-l{font-size:var(--fs-12);color:var(--accent-text)}
+  .cd .f{display:flex;gap:6px;margin-top:auto}
+  .steps3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp-3);margin-top:var(--sp-4)}
+  .stp{padding:var(--sp-4);border-radius:var(--r-card);background:var(--surface-1);border:1px solid var(--divider)}
+  .stp .t{font-size:var(--fs-12);color:var(--text-3)} .stp b{display:block;font-size:var(--fs-24);margin:4px 0} .stp p{font-size:var(--fs-12);color:var(--text-2);line-height:1.6}
+  .soon{color:var(--wait)}
+  .chart{margin-top:var(--sp-5);padding:var(--sp-4) var(--sp-5);border-radius:var(--r-card);background:rgb(var(--rgb-deep) / .35);border:1px solid var(--divider)}
+  .chart svg{display:block;width:100%;height:auto;overflow:visible}
+  .chart .ax{stroke:var(--divider);stroke-width:1} .chart .tk{fill:var(--text-3);font-size:11px;font-variant-numeric:tabular-nums}
+  .chart .ln{fill:none;stroke-width:2.5;stroke-linecap:round} .chart .lb{font-size:12px;font-weight:600}
+  .chart .lg{display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-12);color:var(--text-2)} .chart .lg i{width:14px;height:3px;border-radius:2px}
+  .chart svg{margin-top:var(--sp-3)}
+  .chart .fee{stroke:var(--error);stroke-dasharray:4 4;stroke-width:1.5}
+  .stp.on{border-color:color-mix(in srgb,var(--brand) 50%,transparent);background:color-mix(in srgb,var(--brand) 8%,var(--surface-1))}
+  @media (max-width:1279px){ .nums{grid-template-columns:1fr 1fr} }
+  @media (max-width:1023px){ .calc{grid-template-columns:minmax(0,1fr)} .steps3{grid-template-columns:minmax(0,1fr)} }
+</style>
+</head>
+<body class="wb" data-as="m-zs">
+<main class="main" id="page">
+  <section class="pagebar flush wbband"><span class="pb-bg" style="background-image:url(img/wb-xiaoxuan.webp);background-position:62% 50%"></span>
+    <div class="pb-who"><img src="img/avatar-xiaoxuan.webp" alt=""><div><div class="pb-crumb"><a href="05-小投工作台.html#home">工作台</a> / 小选</div><h1>小选 · 选品</h1><div class="pb-sub"><span class="dot live"></span>在岗 · 负责人 张三 · 只出数字，做不做由主管定</div></div></div>
+    <div class="pb-pills"><span class="pill">本周算了 <b>11</b> 个</span><span class="pill">费用 <b>¥0.90</b></span><span class="pill">候选 <b>6</b> 个</span></div>
+    <div class="pb-r"><div class="seg" id="sc" role="tablist"></div></div>
+  </section>
+  <div id="body"></div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  OS.shell({active: '', side: 'xiaoxuan'});
+  const {$, $$, icon, states, toast, fmt} = OS;
+  const C = f => `img/create/${f}.webp`;
+  const SC = [['calc', '算利润'], ['clear', '清货价'], ['cands', '候选商品'], ['sched', '定时']];
+  let scene = SC.some(s => '#' + s[0] === location.hash) ? location.hash.slice(1) : 'calc', state = '正常';
+  function tabs(){
+    $('#sc').innerHTML = SC.map(([k, l]) => `<button role="tab" class="${k === scene ? 'on' : ''}" data-s="${k}">${l}</button>`).join('');
+    $$('#sc button').forEach(b => b.onclick = () => { scene = b.dataset.s; history.replaceState(null, '', '#' + scene); render(); });
+  }
+  // 算利润（演示：H096 便携榨汁杯，沙特 FBN）。数字照脚本 calc-profit 的口径：售价、费用是里亚尔，采购价、头程是人民币（元）
+  const RATE = 1.92;
+  function calc(){
+    const v = {price: 69, cost: 38, kg: 0.62, ship: 38, com: .10, fbn: 11.5};
+    const draw = () => {
+      const com = v.price * v.com, head = v.kg * v.ship / RATE, buy = v.cost / RATE, profit = v.price - com - v.fbn - head - buy, pm = profit / v.price * 100;
+      const fixed = v.fbn + head + buy, be = fixed / (1 - v.com), p25 = fixed / (1 - v.com - .25), roas = v.price / profit;
+      const rows = [['售价', v.price, 'var(--brand)', 0, v.price], ['佣金 10%', -com, 'var(--error)', v.price - com, com], ['FBN 配送费', -v.fbn, 'var(--error)', v.price - com - v.fbn, v.fbn], ['头程 ' + v.kg + ' kg', -head, 'var(--wait)', v.price - com - v.fbn - head, head], ['采购价 ¥' + v.cost, -buy, 'var(--wait)', profit, buy]];
+      $('#res').innerHTML = `<div class="verdict"><h2>能赚：卖 SAR ${v.price} 时毛估利润 <b>SAR ${profit.toFixed(1)}</b>（${pm.toFixed(1)}%）</h2>
+          <p>保本价 SAR ${be.toFixed(1)}，到 25% 要卖 SAR ${p25.toFixed(1)}。同行在卖 SAR 65–79，建议定 SAR ${v.price}。毛估：还没算退货损失、长期仓储费。</p>
+          <div class="nums"><div><span>毛估利润</span><b class="num">SAR ${profit.toFixed(1)}</b></div><div><span>利润率</span><b class="num">${pm.toFixed(1)}%</b></div><div><span>保本价</span><b class="num">SAR ${be.toFixed(1)}</b></div><div><span>投广告的保本 ROAS</span><b class="num">${roas.toFixed(2)}</b></div></div></div>
+        <section class="card pad wf"><div class="row"><h3>钱都去哪了</h3><span class="sp"></span><span class="t3 fs-12">1 元 ≈ SAR ${(1 / RATE).toFixed(3)}（按 1 SAR ≈ ¥${RATE}）</span></div>
+          ${rows.map(([l, n, c, left, w]) => `<div class="r"><span>${l}</span><span class="bar"><i style="left:${(n > 0 ? 0 : left) / v.price * 100}%;width:${w / v.price * 100}%;background:${c}"></i></span><b class="${n > 0 ? '' : 't2'}">${n > 0 ? '' : '−'}${Math.abs(n).toFixed(1)}</b></div>`).join('')}
+          <div class="r tot"><b style="text-align:left">毛估利润</b><span class="bar"><i style="left:0;width:${profit / v.price * 100}%;background:var(--ok)"></i></span><b style="color:var(--ok)">${profit.toFixed(1)}</b></div></section>
+        <div class="row" style="gap:8px;margin-top:var(--sp-4);flex-wrap:wrap"><button class="btn main" id="save">${icon('check', 14)}存进商品库</button><button class="btn" id="exp">${icon('file', 14)}导出毛利表</button><a class="btn" href="05b-小测工作台.html#plan">交给小测开测</a><span class="sp"></span><span class="t3 fs-12">做不做这个品，由主管王五定</span></div>`;
+      $('#save').onclick = () => toast('已存进商品库', `H096 的售价、单件毛利、保本 ROAS ${roas.toFixed(2)}，小投、小测、小补都会用。`);
+      $('#exp').onclick = () => toast('已导出', '团队毛利表多了一行 H096。');
+    };
+    $('#body').innerHTML = OS.say('xiaoxuan', '本周', '这周算了 11 个品：<b class="ok">H098 双层饭盒 31.2%</b> 最好，测款计划已提交；<b>H096 便携榨汁杯</b>刚算完 26.8%，等王五定；<b>硅胶冰格</b> 12.1% 利润太薄，建议先不做。', '<button class="btn" id="toCands">看候选商品</button>') + `<div class="calc"><section class="card pad inputs">
+        <div class="pic"><img src="${C('blender')}" alt=""><div><b>H096 便携榨汁杯</b><span>noon 沙特 · FBN · 1688 供货页</span></div></div>
+        <div class="inp"><label>售价（SAR）</label><input class="input num" data-k="price" value="69"></div>
+        <div class="inp"><label>采购价（元）<span class="read">读到</span></label><input class="input num" data-k="cost" value="38"></div>
+        <div class="inp"><label>重量（kg）<span class="est">估的</span></label><input class="input num" data-k="kg" value="0.62"></div>
+        <div class="inp"><label>头程（元/kg）<span class="est">估的</span></label><input class="input num" data-k="ship" value="38"></div>
+        <div class="inp"><label>类目佣金</label><input class="input num" value="10%" disabled></div>
+        <div class="inp"><label>FBN 配送费（SAR）</label><input class="input num" value="11.5" disabled></div>
+        <p class="hint" style="margin-top:var(--sp-3)">重量和头程是估的，会影响结论：问一下货代就准了。佣金和配送费按 noon 沙特的费率表（类目：小家电 · 榨汁机）。改数字马上重算。</p>
+        <div class="note" style="margin-top:var(--sp-3)">${icon('check', 12)} 能卖：check-restricted 没有禁售或货代提醒。</div></section>
+      <div id="res"></div></div>`;
+    $('#toCands').onclick = () => { scene = 'cands'; history.replaceState(null, '', '#cands'); render(); };
+    $$('[data-k]').forEach(i => i.oninput = () => { const n = parseFloat(i.value); if (!isNaN(n)) { v[i.dataset.k] = n; draw(); } });
+    draw();
+  }
+  function clear(){
+    $('#body').innerHTML = `<section class="card pad"><div class="row" style="gap:12px"><span style="width:64px;height:64px;border-radius:12px;display:grid;place-items:center;background:var(--surface-2);color:var(--text-2);font-weight:700">H052</span><div><h3>H052 吸管杯 · 清货方案</h3><p class="t3 fs-12" style="margin-top:4px">库存 60 件 · 测款两轮没达标 · 日销 0.6 · 脚本 clear-plan</p></div><span class="sp"></span><span class="st wait">等拍板：停止投入</span></div>
+        <div class="steps3">${[['第 1 步 · 先降到保本', 'SAR 22', '利润 0，日销预计 1.5，约 40 天卖完', 1], ['第 2 步 · 卖得慢再降', 'SAR 19', '每件亏 SAR 2.4，日销预计 3，约 20 天卖完', 0], ['第 3 步 · 回本采购价', 'SAR 16', '只回本采购和费用，日销预计 5，约 12 天卖完', 0]]
+          .map(([t, p, d, on]) => `<div class="stp${on ? ' on' : ''}"><span class="t">${t}</span><b class="num">${p}</b><p>${d}</p></div>`).join('')}</div>
+        <div class="chart"><div class="row" style="flex-wrap:wrap;gap:6px 16px"><b class="fs-13">60 件多久卖完</b><span class="t3 fs-12">按三种价格的预计日销</span><span class="sp"></span>${CL.map(([l, , k]) => `<span class="lg"><i style="background:var(${k})"></i>${l}</span>`).join('')}</div>${clearChart()}</div>
+        <p class="hint" style="margin-top:var(--sp-4)">长期仓储费从第 60 天开始算，三步都能在那之前卖完，所以建议先走第 1 步。改价要拍板；拍板后由小投通过接口改价、停广告。</p>
+        <div class="row" style="gap:8px;margin-top:var(--sp-3)"><a class="btn main" href="08-等你拍板.html">去等你拍板</a><button class="btn" id="exp2">${icon('file', 14)}导出降价表</button></div></section>`;
+    $('#exp2').onclick = () => toast('已导出', 'H052 的三步降价表。');
+    $('#body').insertAdjacentHTML('beforeend', `<section class="card" style="margin-top:var(--sp-4)"><div class="card-h"><h3>其他该清的货</h3><span class="t3 fs-12">在仓超过 60 天或日销不到 1 件 · 每周日小选重算</span></div>
+      <div class="card-b tbl-wrap"><table class="tbl"><thead><tr><th>商品</th><th class="r">库存</th><th class="r">日销</th><th class="r">已在仓</th><th class="r">照现在卖完要</th><th>小选的建议</th><th></th></tr></thead><tbody>
+      ${[['H033 折叠水杯', '云屿商店 · 沙特', 85, 0.9, 74, '94 天', '降到保本 SAR 24，预计 45 天卖完', 'wait'], ['H027 手机支架（老款）', '云屿商店 · 沙特', 40, 0.3, 112, '133 天', '新款上了，老款回本价清', 'err'], ['H058 冰格 2 件装', '星帆商店 · 阿联酋', 120, 1.6, 38, '75 天', '先观察，第 60 天再算一次', 'off']]
+        .map(([n, s, q, d, age, need, adv, k]) => `<tr><td><b>${n}</b><span class="sub">${s}</span></td><td class="r num">${q}</td><td class="r num">${d}</td><td class="r num ${age > 60 ? 'soon' : ''}">${age} 天</td><td class="r num">${need}</td><td class="fs-13">${OS.st(k === 'wait' ? '建议降价' : k === 'err' ? '建议清货' : '先观察', k)} <span class="t2">${adv}</span></td><td class="r"><button class="btn sm" data-plan="${n}">出方案</button></td></tr>`).join('')}
+      </tbody></table></div></section>`);
+    $$('[data-plan]').forEach(b => b.onclick = () => toast('小选在算', `${b.dataset.plan} 的三步降价方案，大约 10 秒。`));
+  }
+  const CL = [['第 1 步 · SAR 22（建议）', 40, '--brand'], ['第 2 步 · SAR 19', 20, '--dept-web'], ['第 3 步 · SAR 16', 12, '--dept-media']];
+  // 清货走势：60 件按三种价格各自的日销卖完（1.5 / 3 / 5 件每天）；第 60 天起收长期仓储费
+  function clearChart(){
+    const W = 1060, H = 230, L = 34, R = 24, T = 18, Bm = 28, X = d => L + d / 66 * (W - L - R), Y = n => T + (1 - n / 60) * (H - T - Bm);
+    const LN = CL;
+    return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="三种价格下库存卖完的天数：第 1 步 40 天，第 2 步 20 天，第 3 步 12 天">
+      ${[0, 20, 40, 60].map(n => `<line class="ax" x1="${L}" x2="${W - R}" y1="${Y(n)}" y2="${Y(n)}" ${n ? 'opacity=".5"' : ''}/><text class="tk" x="${L - 8}" y="${Y(n) + 4}" text-anchor="end">${n}</text>`).join('')}
+      ${[0, 10, 20, 30, 40, 50, 60].map(d => `<text class="tk" x="${X(d)}" y="${H - 6}" text-anchor="middle">${d}${d === 60 ? ' 天' : ''}</text>`).join('')}
+      <line class="fee" x1="${X(60)}" x2="${X(60)}" y1="${T}" y2="${H - Bm}"/><text class="tk" x="${X(60) - 6}" y="${T + 4}" text-anchor="end" style="fill:var(--error)">第 60 天起收长期仓储费</text>
+      ${LN.map(([l, d, k], i) => `<path class="ln" style="stroke:var(${k})" d="M${X(0)} ${Y(60)} L${X(d)} ${Y(0)}"/><circle cx="${X(d)}" cy="${Y(0)}" r="4" style="fill:var(${k})"/>
+        <text class="lb" x="${X(d) + 8}" y="${Y(0) - 8 - i * 0}" style="fill:var(${k})">${d} 天</text>`).join('')}
+    </svg>`;
+  }
+  const CANDS = [['lunchbox', 'H098 双层饭盒', 32, 31.2, 'SAR 39', 'SAR 28.9', '测款计划已提交，等王五确认', 'ok'], ['blender', 'H096 便携榨汁杯', 38, 26.8, 'SAR 69', 'SAR 48.4', '刚算完，等主管定', 'wait'],
+    ['kidscup', 'H044 儿童水杯', 12, 22.0, 'SAR 28', 'SAR 21.8', '在售', 'ok'], ['massagegun', 'H061 筋膜枪 X2', 35.5, 18.4, 'SAR 79', 'SAR 64.5', '在售 · 补货申请等拍板', 'ok'],
+    ['icetray', '硅胶冰格', 9, 12.1, 'SAR 19', 'SAR 16.7', '利润率偏低，建议先不做', 'off'], ['phoneholder', '车载手机支架', 15, 24.5, 'SAR 35', 'SAR 26.4', '带磁铁：货代提醒要报备', 'err']];
+  function cands(){
+    $('#body').innerHTML = `<div class="row" style="margin-bottom:var(--sp-3)"><h3>候选商品</h3><span class="t3 fs-12" style="margin-left:10px">按毛估利润率排 · 发链接或供货页就能加一个</span><span class="sp"></span><button class="btn sm main" id="add">${icon('plus', 14)}加一个候选</button></div>
+      <div class="cands">${CANDS.map(([p, n, cost, pm, price, be, s, k], i) => `<div class="cd"><div class="p"><img src="${C(p)}" alt=""><span class="rk">${i + 1}</span></div><div class="b"><b>${n}</b>
+          <div class="pm num" style="color:var(${pm >= 25 ? '--ok' : pm >= 18 ? '--brand-hi' : '--wait'})">${pm.toFixed(1)}% <small style="font-size:12px;font-weight:400;color:var(--text-3)">毛估利润率</small></div>
+          <div class="kv"><span>采购价 <em>¥${cost}</em></span><span>建议售价 <em>${price}</em></span><span>保本价 <em>${be}</em></span></div>
+          <span class="${k === 'err' ? 'warn-l' : 't3 fs-12'}">${s}</span>
+          <div class="f"><button class="btn sm" data-c="${i}">看测算</button>${i < 2 ? '<a class="btn sm main" href="05b-小测工作台.html#plan">交给小测开测</a>' : ''}</div></div></div>`).join('')}</div>
+      <p class="hint" style="margin-top:12px">只排利润，不替你选：做不做一个品由主管定。定下来的交给小测开测，小架同时起草 listing。</p>`;
+    $$('[data-c]').forEach(b => b.onclick = () => { scene = 'calc'; history.replaceState(null, '', '#calc'); render(); });
+    $('#add').onclick = () => toast('发链接就行', '在新任务里说「小选，算一下这个」，贴 noon、亚马逊或 1688 链接。');
+  }
+  function sched(){
+    $('#body').innerHTML = OS.schedTab('xiaoxuan', '小选每周日 10:00 按最新费率重算在售商品的利润，利润率掉到 10% 以下的提醒负责人。');
+    OS.bindSched($('#body'));
+  }
+  function render(s = state){
+    state = s; tabs();
+    const B = $('#body');
+    if (s === '加载中') return B.innerHTML = `<div class="calc"><div class="skel" style="height:460px"></div><div class="skel" style="height:460px"></div></div>`;
+    if (s === '出错') return B.innerHTML = states.error({what: '费率表没读到', why: '先用上次的费率算，结果会标出来', next: '<button class="btn sm main">重读费率</button>'});
+    if (s === '没有数据') return B.innerHTML = `<div class="card">${states.empty({img: 'empty-xiaoxuan.webp', title: '还没算过', text: '发一个 noon、亚马逊或 1688 链接，或者商品的采购价、尺寸、重量，小选算给你看能不能赚。', act: '<a class="btn main" href="17-新任务.html?q=小选，算一下这个品能不能赚">去新任务</a>'})}</div>`;
+    ({calc, clear, cands, sched})[scene]();
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>

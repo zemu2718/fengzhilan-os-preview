@@ -1,0 +1,136 @@
+/*
+  风之岚 OS 设计变量（唯一来源）
+  依据 docs/3-UI设计.md 第四节。原型和前端都只从这里取值：
+  前端（Tailwind v4）在全局样式里 @import 本文件，再在 @theme 里引用这些变量。
+  改值只改这里；新增变量先补进 UI 设计文档第四节。
+*/
+:root{
+  color-scheme:dark;
+
+  /* ---------- 底色与层级 ---------- */
+  --bg-0:#14181F;            /* 页面底色（低饱和石墨） */
+  --surface-1:#1E242E;       /* 卡片、表格底 */
+  --surface-2:#262D39;       /* 悬停、输入框、表头 */
+  --surface-3:#303847;       /* 选中、按下 */
+  --glass-1:rgba(14,29,59,.55);   /* 地图上的玻璃卡片（配 blur 18px） */
+  --glass-2:rgba(14,29,59,.82);   /* 地图上的面板、弹窗（配 blur 22px） */
+  --border:rgba(255,236,200,.16);
+  --border-strong:rgba(255,236,200,.28);
+  --divider:rgba(255,255,255,.06);
+  --scrim:rgba(8,10,16,.5);
+
+  /* ---------- 文字 ---------- */
+  --text-1:#F5EFE4;          /* 主要文字（在 bg-0 上 15.5:1） */
+  --text-2:#B9C0D4;          /* 次要文字 */
+  --text-3:#8B95B0;          /* 辅助：时间、单位、说明；地图玻璃卡片上不用 */
+  --text-on-brand:#1B1305;   /* 金色按钮上的深字 */
+
+  /* ---------- 品牌与强调 ---------- */
+  --brand:#F2B544;           /* 太阳金：品牌、主按钮、待拍板 */
+  --brand-hi:#FACB83;
+  --brand-lo:#D58A41;
+  --accent:#C2410C;          /* 朱红底色：徽章、提醒 */
+  --accent-text:#FF7A52;     /* 朱红文字 */
+  --dawn:#D4A697;            /* 云顶暖光，只用于插画、登录页渐变 */
+
+  /* ---------- 部门色 ---------- */
+  --dept-commerce:#F2B544;
+  --dept-media:#E58BB0;
+  --dept-web:#7FD1C7;
+
+  /* ---------- 状态 ---------- */
+  --ok:#5EE6A0;              /* 正常、在岗、已生效 */
+  --wait:#F2B544;            /* 待拍板、执行中 */
+  --error:#FF5A5A;           /* 异常、紧急 */
+  --off:#8B95B0;             /* 未接入、第二期 */
+
+  /* ---------- 建议类型（广告复盘建议表） ---------- */
+  --sug-up:#F2B544;          /* 加价、加新词、加预算 */
+  --sug-down:#7FB4FF;        /* 降价、位置降加价 */
+  --sug-stop:#FF6B6B;        /* 没货先停、停 */
+  --sug-neg:#A9B2C8;         /* 否定 */
+  --sug-fix:#B98CFF;         /* 先修商品页、分批标注 */
+
+  /* ---------- 字体 ---------- */
+  --font-system:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;   /* 系统字体：MiSans 没加载出来时的后备 */
+  --font-sans:var(--font-misans);            /* 2026-11-22 定：界面用 MiSans（中文 + 阿拉伯语）；字体文件见 assets/fonts-misans.css */
+  --font-misans:MiSans,MiSansArabic,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  --font-harmony:"HarmonyOS Sans SC","HarmonyOS Sans Naskh Arabic UI",-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;   /* 落选，只在字体对比页（00b）用 */
+  --font-serif:"Noto Serif SC","Songti SC",serif;     /* 只用于品牌字标 */
+  --font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --fs-11:11px; --fs-12:12px; --fs-13:13px; --fs-14:14px; --fs-16:16px; --fs-20:20px; --fs-24:24px; --fs-32:32px;
+  --fs-num-28:28px; --fs-num-40:40px; --fs-num-56:56px;   /* 驾驶舱大数字 */
+  --lh-tight:1.2; --lh:1.5; --lh-loose:1.7;
+
+  /* ---------- 间距（4 的倍数） ---------- */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px; --sp-7:48px;
+
+  /* ---------- 圆角 ---------- */
+  --r-btn:8px; --r-card:12px; --r-pop:16px; --r-pill:999px;
+
+  /* ---------- 阴影：深色主题不用灰阴影，用内描边 + 微光 ---------- */
+  --shadow-card:0 10px 36px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.05);
+  --shadow-pop:0 20px 60px rgba(0,0,0,.45);
+  --glow-brand:0 0 24px rgba(242,181,68,.15);
+
+  /* ---------- 动效：交互用这几档；云雾、漂浮这类循环装饰可以在页面里单写，但「减少动态效果」时一律停 ---------- */
+  --ease:cubic-bezier(.2,.7,.1,1);
+  --t-hover:150ms;           /* 悬停浮起 */
+  --t-panel:200ms;           /* 面板进出 */
+  --t-enter:400ms;           /* 进场、展开、抽屉内容 */
+  --t-number:600ms;          /* 数字滚动、进度条长出来 */
+  --t-slow:1200ms;           /* 横幅背景图慢慢放大 */
+  --t-flow:3s;               /* 光带流动（循环） */
+  --t-breathe:2s;            /* 呼吸灯（循环） */
+
+  /* ---------- 布局 ---------- */
+  --topbar-h:64px;
+  --side-w:220px;
+  --content-max:1440px;
+  --wb-max:1880px;  /* 带侧栏的页面：内容靠左，最宽这么多（不含左右各 32px 留白）；横幅里的页签对齐到同一条右边线 */
+  --tap-min:44px;            /* 手机上按钮最小高度 */
+
+  --brand-fill-hi:#FACB83;   /* 金色按钮、进度条的渐变（浅色下 brand-hi 变深做文字用，按钮仍用亮金） */
+  --brand-fill-lo:#D58A41;
+  --me-a:#3a4a75; --me-b:#1b2a4a;   /* 顶栏头像底 */
+
+  /* ---------- 跟主题走的 RGB 通道（页面里的半透明叠色用：rgb(var(--rgb-tint) / .06)） ---------- */
+  --rgb-tint:255 255 255;    /* 叠在面上的提亮（悬停、分隔、轨道） */
+  --rgb-warm:255 236 200;    /* 暖色描边 */
+  --rgb-ink:245 239 228;     /* 主要文字色的半透明版 */
+  --rgb-panel:30 36 46;      /* 半透明卡片底 */
+  --rgb-deep:20 24 31;       /* 半透明压暗（横幅压图、浮在图上的按钮底） */
+
+  /* ---------- 兼容早期原型的别名（前端不要用，新页面不要用） ---------- */
+  --ink:var(--bg-0); --ink-2:var(--surface-1);
+  --glass:rgba(30,36,46,.78); --line:var(--border); --line-2:var(--border-strong);
+  --gold:var(--brand); --gold-2:var(--brand-hi); --vermilion:var(--accent);
+  --text:var(--text-1); --muted:var(--text-2); --dim:var(--text-3);
+  --up:var(--sug-up); --down:var(--sug-down); --stop:var(--sug-stop); --neg:var(--sug-neg); --batch:var(--sug-fix); --storm:var(--error);
+  --r:var(--r-pop); --hd:var(--topbar-h);
+}
+
+/* ================= 浅色（2026-11-22 定：深色、浅色两套都做，默认深色） =================
+   在 <html data-theme="light"> 上生效；顶栏头像菜单可切换，网址加 ?theme=light 也行。
+   地图、登录是整张插画，始终深色（<html data-theme-lock>）。 */
+:root[data-theme="light"]:not([data-theme-lock]){
+  color-scheme:light;
+  --bg-0:#F4F1EA; --surface-1:#FFFFFF; --surface-2:#F3EEE5; --surface-3:#E9E2D5;
+  --glass-1:rgba(255,255,255,.72); --glass-2:rgba(255,255,255,.92);
+  --border:rgba(120,88,40,.16); --border-strong:rgba(120,88,40,.3); --divider:rgba(20,24,31,.08); --scrim:rgba(20,24,31,.32);
+  --text-1:#1D2330; --text-2:#475066; --text-3:#6A7387; --text-on-brand:#1B1305;
+  --brand:#EBA935; --brand-hi:#A86A12; --brand-lo:#C57F2C; --accent:#C2410C; --accent-text:#C2410C; --dawn:#C98F7E;
+  --dept-commerce:#B7791F; --dept-media:#C2477A; --dept-web:#1F8F84;
+  --ok:#14855A; --wait:#B7791F; --error:#D33A3A; --off:#7A8399;
+  --sug-up:#B7791F; --sug-down:#2F6FD6; --sug-stop:#D33A3A; --sug-neg:#6A7387; --sug-fix:#7A4FD8;
+  --shadow-card:0 1px 2px rgba(20,24,31,.05),0 6px 20px rgba(20,24,31,.06);
+  --shadow-pop:0 16px 48px rgba(20,24,31,.16);
+  --glow-brand:0 0 0 1px rgba(235,169,53,.25);
+  --rgb-tint:20 24 31; --rgb-warm:120 88 40; --rgb-ink:29 35 48; --rgb-panel:255 255 255; --rgb-deep:244 241 234;
+  --glass:rgba(255,255,255,.86);
+  --brand-fill-hi:#F7C66C; --brand-fill-lo:#E39A2E; --me-a:#EFE7D8; --me-b:#DCCFB8;
+}
+
+/* 字体对比用：<html data-font="harmony|system"> 时整站换成别的字体看看（00b-字体对比）；默认就是 MiSans */
+:root[data-font="harmony"]{--font-sans:var(--font-harmony)}
+:root[data-font="system"]{--font-sans:var(--font-system)}

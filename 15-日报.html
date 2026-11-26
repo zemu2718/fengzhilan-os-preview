@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 日报</title>
+<!-- P15 日报：网页 + 企业微信消息卡片。每日巡检 15:00 拉前一天的数据，小巡 15:10 写好。手机上也要好读。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:var(--sp-6);align-items:start}
+  .paper{max-width:760px}
+  .by{display:flex;align-items:center;gap:var(--sp-3)}
+  .by img{width:52px;height:52px;object-fit:contain}
+  .by b{display:block} .by span{font-size:var(--fs-12);color:var(--text-3)}
+  .headline{font-size:22px;line-height:1.55;font-weight:600;margin:var(--sp-4) 0 var(--sp-5);text-wrap:balance}
+  .kpis.r4 .kpi .v{font-size:var(--fs-24)}
+  h3.h{font-size:var(--fs-16);margin:var(--sp-6) 0 var(--sp-2)}
+  .li .r{white-space:nowrap;font-size:var(--fs-13)}
+  .watch li{margin:6px 0;color:var(--text-2);line-height:var(--lh-loose)}
+  .pager{display:flex;gap:6px}
+  .wc{position:sticky;top:calc(var(--topbar-h) + 24px)}
+  .wc .lab{font-size:var(--fs-12);color:var(--text-3);margin-bottom:8px}
+  .msg{border-radius:var(--r-card);overflow:hidden;background:#F7F7F7;color:#1F2329;box-shadow:var(--shadow-pop)}
+  .msg img{width:100%;aspect-ratio:2136/910;object-fit:cover}
+  .msg .in{padding:14px 16px}
+  .msg h4{font-size:15px;color:#1F2329}
+  .msg p{font-size:13px;color:#646A73;margin-top:6px;line-height:1.6}
+  .msg .lk{display:flex;border-top:1px solid #E5E6EB}
+  .msg .lk a{flex:1;text-align:center;padding:12px 0;font-size:14px;color:#3370FF}
+  .msg .lk a+a{border-left:1px solid #E5E6EB}
+  .wc .from{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:var(--fs-12);color:var(--text-3)}
+  .wc .from img{width:28px;height:28px;border-radius:8px;object-fit:contain;background:var(--surface-2)}
+  @media (max-width:1279px){ .wrap{grid-template-columns:minmax(0,1fr)} .wc{position:static;max-width:380px} }
+  @media (max-width:767px){ .headline{font-size:18px} .kpis.r4{grid-template-columns:1fr 1fr} }
+</style>
+</head>
+<body>
+<main class="main" id="page">
+  <div class="page-h"><div><h1>日报 · <span id="d"></span></h1><div class="sub">每天 15:10 小巡写好，网页一份，企业微信里推一条</div></div>
+    <div class="acts"><div class="seg" id="per" role="group" aria-label="日报、周报、月报"></div><span class="pager"><button class="btn sm" aria-label="前一份">‹ 前一份</button><button class="btn sm" disabled>后一份 ›</button></span></div></div>
+  <div class="wrap"><article class="paper" id="body"></article>
+    <aside class="wc" aria-label="企业微信消息"><div class="lab">企业微信里收到的样子</div><div class="from"><img src="img/avatar-xiaoxun.webp" alt="">风之岚 OS · 小巡 · 15:10</div><div class="msg" id="msg"></div>
+      <p class="hint" style="margin-top:10px">工作群里的日报由群机器人发；要你拍板的事用应用消息单独发给你，卡片里直接批准。</p></aside></div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, icon, states, kpi} = OS;
+  OS.shell({active: 'report'}); OS.fullscreen();
+  const REP = {today: D.report, week: D.reports.week, month: D.reports.month};
+  let per = 'today', R = REP[per];
+  document.querySelectorAll('.pager button')[0].innerHTML = `${icon('back', 14)}前一份`;
+  document.querySelectorAll('.pager button')[1].innerHTML = `后一份${icon('arrow', 14)}`;
+  const MSG = {
+    today: () => `ROAS 3.19 ↑0.21 · 昨天批的 10 条全部生效<br>今天等你拍板 ${OS.mine().length} 件：补货申请 3 个商品（SAR 9,800）、吸管杯测款、云屿商店 4 条广告调整`,
+    week: () => `本周销售 SAR 41,350 + AED 9,950 ↑8% · ROAS 3.20<br>星帆商店 阿联酋站 ROAS 一路往下，已批降价；还有 ${OS.mine().length} 件等你拍板`,
+    month: () => `本月至今销售 SAR 156,200 + AED 37,400 ↑12% · ROAS 3.08<br>AI 费用 ¥402.60，预算还剩 ¥397`,
+  };
+  function head(){
+    $('#per').innerHTML = Object.entries(REP).map(([k, r]) => `<button class="${k === per ? 'on' : ''}" data-p="${k}">${r.lab}</button>`).join('');
+    $$('#per button').forEach(b => b.onclick = () => { per = b.dataset.p; R = REP[per]; head(); render(); });
+    document.querySelector('.page-h h1').innerHTML = `${R.title} · ${R.date}`;
+    document.querySelector('.page-h .sub').textContent = per === 'today' ? '每天 15:10 小巡写好，网页一份，企业微信里推一条' : per === 'week' ? '每周四 15:10 小巡写周报（沙特一周到周四），企业微信里推一条' : '本月至今的汇总；每月 1 日出上个月的完整月报';
+    $('.wc .from').innerHTML = `<img src="img/avatar-xiaoxun.webp" alt="">风之岚 OS · 小巡 · ${per === 'today' ? '15:10' : per === 'week' ? '周四 15:10' : '每月 1 日'}`;
+    $('#msg').innerHTML = `<img src="img/wecom-banner.webp" alt=""><div class="in"><h4>风之岚 OS · ${R.title} · ${R.date.split(' ')[0]}</h4><p>${MSG[per]()}</p></div>
+      <div class="lk"><a href="09-等你拍板-手机.html">去拍板</a><a href="15-日报.html">看${R.title}</a></div>`;
+  }
+  head();
+  function render(state = '正常'){
+    const B = $('#body');
+    if (state === '加载中') return B.innerHTML = states.loading(4);
+    if (state === '出错') return B.innerHTML = states.error({what: `这份${R.title}没写成`, why: '15:00 拉数据时 noon 接口超时，小巡会在 15:40 再试一次', next: '<button class="btn sm main">现在重写</button>'});
+    if (state === '没有数据') return B.innerHTML = states.empty({img: 'empty-review.webp', title: `还没有${R.title}`, text: '日报每天 15:10、周报每周四 15:10 自动生成。接上店铺接口后的第二天开始有。'});
+    B.innerHTML = `<div class="by"><img src="img/avatar-xiaoxun.webp" alt=""><div><b>小巡</b><span>${R.at} 写 · ${R.range} · 数据来自 noon 接口和 sub2api</span></div></div>
+      <p class="headline">${R.headline}</p>
+      <div class="kpis r4">${R.kpis.map(k => kpi({l: k[0], v: k[1], d: `${R.cmp} <span class="${k[2].startsWith('-') || !/^[+]/.test(k[2]) ? '' : 'up'}">${k[2]}</span>`})).join('')}</div>
+      <h3 class="h">${R.heads[0]}</h3><div class="card pad list">${R.done.map(d => `<div class="li"><div class="m"><b>${d[0]}</b><div class="s">${d[1]}</div></div><span class="r up num">${d[2]}</span></div>`).join('')}</div>
+      <h3 class="h">${R.heads[1]}</h3><div class="card pad list">${R.todo.map(t => `<a class="li link" href="${t[1].includes('拍板') ? '08-等你拍板.html' : '05-小投工作台.html#done'}"><div class="m"><b>${t[0]}</b></div><span class="st wait">${t[1]}</span>${icon('right', 14)}</a>`).join('')}</div>
+      <h3 class="h">${R.heads[2]}</h3><ul class="watch">${R.watch.map(w => `<li>${w}</li>`).join('')}</ul>
+      <h3 class="h">AI 用量</h3><p class="t2">${R.ai} <a href="14-资源核心.html" class="warn">看资源核心</a></p>`;
+    OS.countUp(B);
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>

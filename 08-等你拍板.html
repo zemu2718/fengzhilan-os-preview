@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 等你拍板</title>
+<!-- P08 等你拍板（电脑）。只列当前登录的人是拍板人的事（决策层，或授权范围内的主管）：只放运营提交上来的、超出运营权限的、要花钱的、紧急的。手机版见 09。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  .wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:var(--sp-5);align-items:start}
+  .ap{padding:var(--sp-4) var(--sp-5);margin-bottom:var(--sp-4);transition:opacity var(--t-enter),translate var(--t-enter) var(--ease)}
+  .ap.gone{opacity:0;translate:0 -8px}
+  .ap-h{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
+  .ap-h h3{font-size:var(--fs-16)}
+  .ap-meta{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;margin-top:6px;font-size:var(--fs-12);color:var(--text-3)}
+  .ap-meta img{width:20px;height:20px;object-fit:contain}
+  .ap-meta b{color:var(--text-2);font-weight:500}
+  .items{margin-top:var(--sp-3);border-top:1px solid var(--divider)}
+  .it{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr) 210px;gap:var(--sp-3);align-items:baseline;padding:10px 0;border-bottom:1px solid var(--divider);font-size:var(--fs-13)}
+  .it .k b{display:block;font-weight:600} .it .k span{font-size:var(--fs-12);color:var(--text-3)}
+  .it .a{color:var(--text-2)} .it .a .why{display:block;font-size:var(--fs-12);color:var(--text-3)}
+  .it .n{text-align:right;color:var(--text-2);white-space:nowrap;font-size:var(--fs-12)}
+  .type{display:inline-block;margin-right:6px;padding:0 6px;border-radius:5px;font-size:var(--fs-11);line-height:18px;font-weight:600;color:var(--k);background:color-mix(in srgb,var(--k) 15%,transparent)}
+  .ap-f{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-4)}
+  .ap-f label{display:flex;align-items:center;gap:8px;font-size:var(--fs-13);color:var(--text-2)}
+  .ap-f .select{width:auto;height:36px;padding:0 10px}
+  .ap-f .sp{flex:1}
+  aside.rules{position:sticky;top:calc(var(--topbar-h) + 24px)}
+  .rules h3{font-size:var(--fs-14);margin-bottom:var(--sp-3)}
+  .rules ul{margin:0 0 var(--sp-4);padding:0;list-style:none}
+  .rules li{position:relative;padding:5px 0 5px 16px;font-size:var(--fs-13);color:var(--text-2)}
+  .rules li::before{content:"";position:absolute;left:2px;top:12px;width:6px;height:6px;border-radius:50%;background:var(--k)}
+  .rules .g{font-size:var(--fs-12);color:var(--text-3);margin:var(--sp-3) 0 4px}
+  .done-li .m b{font-weight:600}
+  .chk{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--text-3);display:grid;place-items:center;cursor:pointer;flex-shrink:0;color:var(--text-on-brand)}
+  .chk.on{background:var(--brand);border-color:var(--brand)}
+  .dr-it{display:grid;grid-template-columns:18px minmax(0,1fr);gap:var(--sp-3);padding:12px 0;border-bottom:1px solid var(--divider);font-size:var(--fs-13)}
+  .dr-it.off{opacity:.5}
+  @media (max-width:1279px){ .wrap{grid-template-columns:minmax(0,1fr)} aside.rules{position:static} }
+  @media (max-width:1023px){ .it{grid-template-columns:minmax(0,1fr)} .it .n{text-align:left} }
+</style>
+</head>
+<body>
+<main class="main" id="page">
+  <div class="page-h">
+    <div><h1>等你拍板</h1><div class="sub">只放你是拍板人的事：运营提交上来的、超出运营权限的、要花钱的、紧急的</div></div>
+    <div class="acts"><div class="seg" role="tablist" id="tabs"></div></div>
+  </div>
+  <div class="wrap">
+    <section id="list" aria-live="polite"></section>
+    <aside class="card pad rules" aria-label="谁能批什么">
+      <h3>谁能批什么</h3>
+      <div class="g">运营初审时直接批（批完写进日报）</div>
+      <ul id="r-ops" style="--k:var(--ok)"></ul>
+      <div class="g">主管王五可以拍板（决策层授权）</div>
+      <ul id="r-lead" style="--k:var(--sug-down)"></ul>
+      <div class="g">决策层拍板</div>
+      <ul id="r-boss" style="--k:var(--wait)"></ul>
+      <p class="hint">每件事按这些规则算出拍板人，通知只发给拍板人和跟进人；两个人都能定的，谁先定都算。权限是初稿，在「管理后台 · 谁能批什么」里改。紧急的事会直接发企业微信给拍板人，点开就是这一页。</p>
+    </aside>
+  </div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, icon, ai, member, st, toast, confirm, drawer, states, img} = OS;
+  OS.shell({active: 'approvals'});
+  $('#r-ops').innerHTML = D.authority.ops.map(x => `<li>${x}</li>`).join('');
+  $('#r-lead').innerHTML = D.authority.lead.map(x => `<li>${x}</li>`).join('');
+  $('#r-boss').innerHTML = D.authority.founder.map(x => `<li>${x}</li>`).join('');
+
+  const TYPE_K = {降价: '--sug-down', 位置: '--sug-down', 加新词: '--sug-up', 预算: '--sug-up', 加价: '--sug-up', 补货: '--error', 停止: '--sug-stop', 否定: '--sug-neg', 停: '--sug-stop'};
+  let pending = OS.mine().map(a => ({...a, items: a.items.map(i => ({...i, on: true}))}));
+  let handled = [...D.approvals.done];
+  let tab = 'pending';
+
+  function badge(){ if (OS.who.role === '运营') return; $$('.top .badge').forEach(b => b.textContent = pending.length); }
+  function tabs(){
+    const T = [['pending', `待处理 ${pending.length}`], ['done', `已处理 ${handled.length}`], ['ops', `运营直批 ${D.approvals.opsApproved.length}`]];
+    $('#tabs').innerHTML = T.map(([k, l]) => `<button role="tab" aria-selected="${k === tab}" class="${k === tab ? 'on' : ''}" data-t="${k}">${l}</button>`).join('');
+    $$('#tabs button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
+  }
+  const itemRow = i => `<div class="it"><div class="k"><b>${i.k}</b><span>${i.o}</span></div>
+      <div class="a"><span class="type" style="--k:var(${TYPE_K[i.t] || '--text-2'})">${i.t}</span>${i.a}<span class="why">${i.why}</span></div>
+      <div class="n num">${[i.sp ? `花费 SAR ${i.sp}` : '', i.sp && i.or != null ? `${i.or} 单` : '', i.ro ? `ROAS ${i.ro.toFixed(2)}` : ''].filter(Boolean).join(' · ')}</div></div>`;
+  function card(a, idx){
+    const A = ai(a.ai), on = a.items.filter(i => i.on).length;
+    return `<article class="card ap" id="${a.id}">
+      <div class="ap-h"><span class="tag" style="--k:var(${{补货申请: '--error', 测款: '--sug-stop'}[a.kind] || '--wait'})">${a.kind}</span><h3>${a.title}</h3><span class="tag" style="--k:var(--text-2)">${a.why}</span><span class="sp"></span><span class="t3 fs-12 nowrap">拍板人 ${OS.deciderName(a)}</span></div>
+      <div class="ap-meta"><img src="${img(A.img)}" alt=""><span>${a.from}</span><b class="num">${a.amount}</b></div>
+      <div class="items">${a.items.map(itemRow).join('')}</div>
+      ${a.decide ? `<div class="ap-f"><span class="t2 fs-13">你来定：</span><span class="sp"></span>
+        ${a.decide.map((d, j) => `<button class="btn${j ? '' : ' main'}" data-dec="${idx}:${j}" title="交给 ${d[1]}">${d[0]}</button>`).join('')}
+        <button class="btn danger" data-back="${idx}">退回</button></div>` : `<div class="ap-f">
+        <label>批准后交给 <select class="select" data-own="${idx}">${a.owners.map(o => `<option>${o}</option>`).join('')}</select></label>
+        <span class="sp"></span>
+        ${a.items.length > 1 ? `<button class="btn ghost" data-each="${idx}">${icon('right')}逐条看</button>` : ''}
+        <button class="btn danger" data-back="${idx}">退回</button>
+        <button class="btn main" data-ok="${idx}">${icon('check')}批准 ${on} 条</button>
+      </div>`}</article>`;
+  }
+  function render(state = '正常'){
+    tabs(); badge();
+    const L = $('#list');
+    if (state === '加载中') return L.innerHTML = states.loading(3);
+    if (state === '出错') return L.innerHTML = states.error({what: '没拿到待拍板的事', why: '服务器暂时连不上'});
+    if (tab === 'pending'){
+      if (OS.who.role === '运营' && state !== '没有数据') return L.innerHTML = states.empty({img: 'empty-approval.webp', title: '没有要你拍板的', text: '你要做的是初审：AI 员工的建议先到你这里，权限内的直接批，超出的提交拍板人。', act: `<a class="btn main" href="${OS.withAs('05-小投工作台.html#done')}">去初审 14 条</a>`});
+      if (state === '没有数据' || !pending.length) return L.innerHTML = states.empty({img: 'empty-approval.webp', title: '都批完了', text: '新的事进来时，紧急的会发企业微信给你，其余写进明天的日报。', act: '<a class="btn" href="03-组织树.html">回组织树</a>'});
+      L.innerHTML = pending.map(card).join('');
+      $$('[data-ok]').forEach(b => b.onclick = () => approve(+b.dataset.ok));
+      $$('[data-back]').forEach(b => b.onclick = () => back(+b.dataset.back));
+      $$('[data-each]').forEach(b => b.onclick = () => each(+b.dataset.each));
+      $$('[data-dec]').forEach(b => b.onclick = () => decide(...b.dataset.dec.split(':').map(Number)));
+    } else if (tab === 'done'){
+      L.innerHTML = `<div class="card pad list">${handled.map(h => `<div class="li done-li"><div class="m"><b>${h.title}</b><div class="s">${h.who} · ${h.time}</div></div>
+        ${st(h.result, h.result === '退回' ? 'off' : 'ok')}<span class="t3 fs-12 nowrap">${h.owner}</span></div>`).join('')}</div>`;
+    } else {
+      L.innerHTML = `<div class="card pad list">${D.approvals.opsApproved.map(o => `<div class="li"><span class="mf">${o.who[0]}</span><div class="m"><b>${o.who}：${o.title}</b><div class="s">${o.time} · ${o.note}</div></div>${st(o.owner, 'run')}</div>`).join('')}</div>
+        <p class="hint" style="margin-top:12px">运营直批的照样由 AI 员工通过接口执行、留记录、能撤回；不合适的，你可以在运行和执行记录里撤回。</p>`;
+    }
+  }
+  async function approve(idx){
+    const a = pending[idx], owner = $(`[data-own="${idx}"]`).value, n = a.items.filter(i => i.on).length;
+    const ok = await confirm({title: `批准「${a.title}」？`, msg: `通过 ${n} 条，交给 ${owner}。${owner.startsWith('小投') ? '执行时每条记下改前改后的值，可以撤回。' : '他会在企业微信里收到，跟进进度 小巡每小时看一次。'}`, ok: `批准 ${n} 条`});
+    if (!ok) return;
+    finish(idx, '通过', owner);
+    toast('已批准', `交给 ${owner.split(' · ')[0]}${owner.startsWith('小投') ? '，开始通过 noon 接口执行' : '跟进'}。`);
+  }
+  async function decide(idx, j){
+    const a = pending[idx], [what, owner] = a.decide[j];
+    if (!await confirm({title: `${a.title.split('：')[0]}：${what}？`, msg: `交给 ${owner}。小巡每小时看一次进度。`, ok: what})) return;
+    finish(idx, what, owner);
+    toast('已拍板', `${what}，交给 ${owner.split(' · ')[0]}。`);
+  }
+  async function back(idx){
+    const a = pending[idx];
+    const ok = await confirm({title: `退回「${a.title}」？`, msg: '<textarea class="textarea" id="why" placeholder="写一句原因，提交人会收到。比如：活动期间先不动"></textarea>', ok: '退回', danger: true});
+    const why = ($('#why') || {}).value || '没写原因';
+    if (!ok) return;
+    finish(idx, '退回', `「${why}」`);
+    toast('已退回', `${a.from.split(' ')[0]}会收到原因。`, 'err');
+  }
+  function finish(idx, result, owner){
+    const a = pending[idx], el = document.getElementById(a.id);
+    handled.unshift({id: a.id, title: a.title, who: OS.who.name, time: '17:02', result, owner});
+    el.classList.add('gone'); setTimeout(() => { pending.splice(idx, 1); render(); }, 350);
+  }
+  function each(idx){
+    const a = pending[idx];
+    const body = () => a.items.map((i, j) => `<div class="dr-it ${i.on ? '' : 'off'}"><span class="chk ${i.on ? 'on' : ''}" role="checkbox" aria-checked="${i.on}" tabindex="0" data-j="${j}">${i.on ? icon('check', 12) : ''}</span>
+      <div><b>${i.k}</b> <span class="t3 fs-12">${i.o}</span><div class="t2" style="margin-top:2px"><span class="type" style="--k:var(${TYPE_K[i.t] || '--text-2'})">${i.t}</span>${i.a}</div><div class="t3 fs-12" style="margin-top:2px">${i.why}</div></div></div>`).join('')
+      + '<div class="field" style="margin-top:16px"><label>备注（可选）</label><textarea class="textarea" placeholder="比如：位置加价先观察到周日"></textarea></div>';
+    const d = drawer({title: a.title, sub: `${a.from} · ${a.amount}`, body: body(), foot: `<span class="t3 fs-12" id="dr-n"></span><span class="sp"></span><button class="btn main" id="dr-ok">通过选中的</button>`});
+    const sync = () => { const n = a.items.filter(i => i.on).length; $('#dr-n').textContent = `选了 ${n}/${a.items.length} 条，没选的算退回`; $('#dr-ok').textContent = `通过 ${n} 条`; };
+    const bind = () => $$('.drawer .chk').forEach(c => { c.onclick = c.onkeydown = e => { if (e.type === 'keydown' && e.key !== ' ' && e.key !== 'Enter') return; e.preventDefault();
+      a.items[+c.dataset.j].on = !a.items[+c.dataset.j].on; $('.drawer-b').innerHTML = body(); bind(); sync(); render(); }; });
+    bind(); sync();
+    $('#dr-ok').onclick = () => { d.close(); approve(idx); };
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>

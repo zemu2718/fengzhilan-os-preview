@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 小导工作台</title>
+<!-- P05f 小导工作台（向导，技能 noon-guide）。场景：新人带教（5 步路线）、找助手、日常问答（注明来源）、定时。
+     2026-11-22：上线到网页后不用成员自己装 TeamAI，去掉「检查接入」。
+     小导只讲解、指路、交资料：不改店铺、不装软件（装之前要成员同意）。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<link rel="stylesheet" href="assets/schedule.css">
+<style>
+  /* 新人带教：左边是一条五步路线（点哪步看哪步），右边是在带的和带完的新人。不放插图，场景交给横幅 */
+  .ob{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:var(--sp-4);align-items:start}
+  .route{padding:var(--sp-5) var(--sp-6) var(--sp-6)}
+  .route-h{display:flex;align-items:flex-start;gap:var(--sp-4);flex-wrap:wrap}
+  .route-h h2{font-size:var(--fs-20);letter-spacing:.04em} .route-h p{font-size:var(--fs-13);color:var(--text-3);margin-top:4px}
+  .route-h > div:first-child{flex:1;min-width:0} .route-h .acts{display:flex;gap:8px;flex:none}
+  /* 路线：节点之间一条线，走过的一段金色 */
+  .track{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin:var(--sp-6) 0 var(--sp-5)}
+  .track::before,.track::after{content:"";position:absolute;top:19px;left:10%;height:3px;border-radius:2px}
+  .track::before{right:10%;background:var(--surface-3)}
+  .track::after{width:calc(80% * var(--done));background:linear-gradient(90deg,var(--brand-lo,var(--brand)),var(--brand-hi));box-shadow:0 0 12px rgba(242,181,68,.45)}
+  .node{all:unset;position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;cursor:pointer;padding:0 6px}
+  .node .dot5{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:var(--fs-14);background:var(--surface-2);color:var(--text-3);border:2px solid var(--surface-3);transition:transform var(--t-hover),box-shadow var(--t-hover)}
+  .node.done .dot5{background:color-mix(in srgb,var(--ok) 18%,var(--surface-1));color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+  .node.doing .dot5{background:var(--brand);color:var(--text-on-brand);border-color:var(--brand-hi);box-shadow:0 0 0 6px rgba(242,181,68,.16),0 0 22px rgba(242,181,68,.4)}
+  .node b{font-size:var(--fs-13);font-weight:600;color:var(--text-2)} .node.doing b,.node.on b{color:var(--text-1)}
+  .node small{font-size:var(--fs-12);color:var(--text-3);display:flex;align-items:center;gap:4px} .node small img{width:18px;height:18px;object-fit:contain}
+  .node:hover .dot5{transform:translateY(-2px)}
+  .node.on .dot5{outline:2px solid rgba(250,203,131,.7);outline-offset:4px}
+  .node:focus-visible .dot5{outline:2px solid var(--brand-hi);outline-offset:4px}
+  /* 选中这一步的详情 */
+  .stepd{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 240px;gap:var(--sp-5);padding:var(--sp-5);border-radius:var(--r-card);background:rgb(var(--rgb-deep) / .45);border:1px solid var(--divider)}
+  .stepd h4{font-size:var(--fs-12);color:var(--text-3);font-weight:500;margin-bottom:8px}
+  .stepd ul{margin:0;padding-left:18px;font-size:var(--fs-13);line-height:1.8;color:var(--text-2)}
+  .stepd .task{font-size:var(--fs-13);line-height:1.7;color:var(--text-1)}
+  .stepd .now{margin-top:10px;font-size:var(--fs-12);color:var(--brand-hi);display:flex;gap:6px;align-items:flex-start}
+  .stepd .coach{display:flex;flex-direction:column;align-items:flex-start;gap:10px;padding-left:var(--sp-5);border-left:1px solid var(--divider)}
+  .stepd .coach .who{display:flex;align-items:center;gap:10px;font-size:var(--fs-13)} .stepd .coach .who img{width:44px;height:48px;object-fit:contain;object-position:bottom}
+  .stepd .coach .who b{display:block;font-size:var(--fs-14)} .stepd .coach .who span{color:var(--text-3);font-size:var(--fs-12)}
+  /* 右栏：在带的、带完的 */
+  .ppl{padding:var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-3)}
+  .ppl h3{display:flex;align-items:baseline;gap:8px} .ppl h3 .n{font-size:var(--fs-12);color:var(--text-3);font-weight:400}
+  .np{display:flex;gap:var(--sp-3);align-items:flex-start;padding:var(--sp-3) var(--sp-4);border-radius:var(--r-card);background:var(--surface-2);border:1px solid var(--divider)}
+  .np .mf{width:36px;height:36px;font-size:14px}
+  .np .m{flex:1;min-width:0} .np .m b{font-size:var(--fs-14)} .np .m span{display:block;font-size:var(--fs-12);color:var(--text-3);margin-top:2px}
+  .pips{display:flex;gap:4px;margin-top:8px} .pips i{flex:1;height:4px;border-radius:2px;background:var(--surface-3)} .pips i.d{background:var(--ok)} .pips i.c{background:var(--brand)}
+  .np.add{border-style:dashed;background:transparent;align-items:center;cursor:pointer} .np.add:hover{border-color:rgba(242,181,68,.4)}
+  .grads{display:flex;flex-direction:column;margin-top:var(--sp-2)}
+  .grads div{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--divider);font-size:var(--fs-13)} .grads div:first-child{border-top:0}
+  .grads .mf{width:26px;height:26px;font-size:11px} .grads .t{margin-left:auto;font-size:var(--fs-12);color:var(--text-3)}
+  .finder{max-width:720px;margin:0 auto var(--sp-5)}
+  .finder .input{height:48px;font-size:var(--fs-16);padding:0 18px}
+  .map{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp-3)}
+  .go{display:flex;gap:12px;align-items:flex-start;padding:var(--sp-4);border-radius:var(--r-card);background:var(--surface-1);border:1px solid var(--divider);color:inherit;transition:border-color var(--t-hover),transform var(--t-hover)}
+  .go:hover{border-color:rgba(242,181,68,.4);transform:translateY(-2px)}
+  .go img{width:44px;height:44px;object-fit:contain;flex-shrink:0}
+  .go b{display:block;font-size:var(--fs-14)} .go span{display:block;font-size:var(--fs-12);color:var(--text-3);margin-top:4px;line-height:1.5}
+  .go .need{color:var(--text-2)}
+  .qa-wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:var(--sp-5);align-items:start}
+  .qa{display:flex;flex-direction:column;gap:var(--sp-4);min-width:0}
+  .askbar{position:sticky;bottom:16px;z-index:5;display:flex;gap:10px;align-items:center;padding:10px 10px 10px 18px;border-radius:18px;background:rgb(var(--rgb-panel) / .92);border:1px solid var(--border-strong);box-shadow:0 18px 40px rgba(0,0,0,.45);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+  .askbar input{all:unset;flex:1;font-size:var(--fs-14);color:var(--text-1)} .askbar input::placeholder{color:var(--text-3)}
+  .rail{position:sticky;top:calc(var(--topbar-h) + 16px);display:flex;flex-direction:column;gap:var(--sp-4)}
+  .hot{display:flex;flex-direction:column;margin-top:var(--sp-2)}
+  .hot button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 6px;border-top:1px solid var(--divider);font-size:var(--fs-13);color:var(--text-2);border-radius:6px}
+  .hot button:first-child{border-top:0} .hot button:hover{color:var(--text-1);background:var(--surface-2)}
+  .hot .k{width:20px;font-weight:700;color:var(--brand-hi);font-variant-numeric:tabular-nums} .hot .n{margin-left:auto;font-size:var(--fs-12);color:var(--text-3)}
+  .also{display:flex;flex-direction:column;margin-top:var(--sp-2)}
+  .also button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:10px 6px;border-top:1px solid var(--divider);border-radius:6px;font-size:var(--fs-12);color:var(--text-3)}
+  .also svg{width:14px;height:14px;flex:none;color:var(--text-3)} .also .ic svg{width:15px;height:15px}
+  .also button:first-child{border-top:0} .also button:hover{background:var(--surface-2)} .also button:hover > svg{color:var(--brand-hi)}
+  .also b{display:block;font-size:var(--fs-13);color:var(--text-1);font-weight:600;margin-bottom:1px} .also span:not(.ic){flex:1;min-width:0}
+  .also img,.also .ic{width:28px;height:28px;flex:none;object-fit:contain} .also .ic{display:grid;place-items:center;border-radius:8px;background:var(--surface-2);color:var(--text-2);font-weight:700;font-size:var(--fs-12)}
+  .also .ic.warn{background:color-mix(in srgb,var(--wait) 18%,transparent);color:var(--wait)}
+  .srcs{display:flex;flex-wrap:wrap;gap:6px;margin-top:var(--sp-2)}
+  .srcs button{all:unset;cursor:pointer;padding:5px 10px;border-radius:8px;background:var(--surface-2);font-size:var(--fs-12);color:var(--text-2)} .srcs button:hover{color:var(--text-1);background:var(--surface-3)}
+  @media (max-width:1279px){ .qa-wrap{grid-template-columns:minmax(0,1fr)} .rail{position:static} }
+  .q{align-self:flex-end;max-width:70%;padding:10px 14px;border-radius:16px 16px 4px 16px;background:color-mix(in srgb,var(--brand) 12%,var(--surface-1));border:1px solid rgba(242,181,68,.25);font-size:var(--fs-14)}
+  .q small{display:block;font-size:var(--fs-12);color:var(--text-3);margin-bottom:2px}
+  .a{display:flex;gap:12px;max-width:86%}
+  .a img{width:36px;height:36px;object-fit:contain;flex-shrink:0}
+  .a .bd{padding:12px 16px;border-radius:4px 16px 16px 16px;background:var(--surface-1);border:1px solid var(--divider);font-size:var(--fs-14);line-height:var(--lh-loose)}
+  .a .bd ol{margin:6px 0 0;padding-left:20px}
+  .a .src{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .a .src span{font-size:var(--fs-12);padding:2px 8px;border-radius:6px;background:var(--surface-2);color:var(--text-2)}
+  .a .fb{display:flex;gap:6px;margin-top:8px;font-size:var(--fs-12);color:var(--text-3)}
+  .a .fb button{all:unset;cursor:pointer;padding:2px 8px;border-radius:6px} .a .fb button:hover{background:var(--surface-2);color:var(--text-1)}
+  @media (max-width:1279px){ .ob{grid-template-columns:minmax(0,1fr)} .stepd{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} .stepd .coach{grid-column:1/-1;padding:var(--sp-4) 0 0;border-left:0;border-top:1px solid var(--divider);flex-direction:row;align-items:center;justify-content:space-between} .map{grid-template-columns:1fr 1fr} }
+  @media (max-width:767px){ .map{grid-template-columns:minmax(0,1fr)} .route{padding:var(--sp-4)} .track{grid-template-columns:minmax(0,1fr);gap:12px;margin:var(--sp-4) 0} .track::before,.track::after{display:none} .node{flex-direction:row;text-align:left;align-items:center} .node small{margin-left:auto} .stepd{grid-template-columns:minmax(0,1fr)} .stepd .coach{flex-direction:column;align-items:flex-start} }
+</style>
+</head>
+<body class="wb" data-as="m-zs">
+<main class="main" id="page">
+  <section class="pagebar flush wbband"><span class="pb-bg" style="background-image:url(img/wb-xiaodao.webp);background-position:62% 50%"></span>
+    <div class="pb-who"><img src="img/avatar-xiaodao.webp" alt=""><div><div class="pb-crumb"><a href="05-小投工作台.html#home">工作台</a> / 小导</div><h1>小导 · 向导</h1><div class="pb-sub"><span class="dot live"></span>在岗 · 负责人 王五 · 只讲解、指路，不改店铺</div></div></div>
+    <div class="pb-pills"><span class="pill">本周回答 <b>26</b> 次</span><span class="pill">费用 <b>¥1.40</b></span><span class="pill">在带新人 <b>1</b> 位</span></div>
+    <div class="pb-r"><div class="seg" id="sc" role="tablist"></div></div>
+  </section>
+  <div id="body"></div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  OS.shell({active: '', side: 'xiaodao'});
+  const {D, $, $$, icon, states, toast, ai, img} = OS;
+  // 页签按做得多少排：日常问答最常用（默认），找助手其次；新人带教是另外一项工作
+  const SC = [['qa', '日常问答'], ['who', '找助手'], ['onboard', '新人带教'], ['sched', '定时']];
+  let scene = SC.some(s => '#' + s[0] === location.hash) ? location.hash.slice(1) : 'qa', state = '正常';
+  function tabs(){
+    $('#sc').innerHTML = SC.map(([k, l]) => `<button role="tab" class="${k === scene ? 'on' : ''}" data-s="${k}">${l}</button>`).join('');
+    $$('#sc button').forEach(b => b.onclick = () => { scene = b.dataset.s; history.replaceState(null, '', '#' + scene); render(); });
+  }
+  // 五步：标题、要会什么、练习、谁带着实操（null = 小导自己讲）
+  const STEPS = [
+    ['认识后台和店铺', ['店铺、站点、FBN 是什么', '商品和 PSKU 怎么对应', '团队的运营地图在哪'], '看一遍运营地图，说出我们三家店（云屿商店、星帆商店、月砂商店）各卖什么', null],
+    ['上新 listing', ['标题和五点卖点', '7 张图各拍什么', '上架前检查查什么'], '跟着小架起草一条 listing', 'xiaojia'],
+    ['看懂广告报表', ['花费、订单、ROAS', '保本线怎么来的', '小投的建议为什么这样给'], '跟着小投看一次复盘，自己判断 3 条建议对不对', 'xiaotou'],
+    ['测款', ['本轮标准怎么定', '四种结论分别什么意思', '什么时候交给小补'], '给一个新品定一份测款标准', 'xiaoce'],
+    ['补货和在途', ['还能卖几天、全周期', '最晚下单日怎么算', '在途为什么要按批记'], '给筋膜枪 X2 填一份在途表', 'xiaobu']];
+  const CUR = 2;  // 赵六在第 3 步
+  let pick = CUR;
+  function onboard(){
+    const B = $('#body');
+    B.innerHTML = `<div class="ob"><section class="card route">
+          <div class="route-h"><div><h2>新人上手 noon · 5 步</h2><p>每一步先讲清要会什么，再做一份练习；做完说「做完第 N 步了」，小导带着往下走</p></div>
+            <div class="acts"><a class="btn main sm" href="17-新任务.html?q=小导，我是新人，带我熟悉一下">${icon('plus', 14)}带一位新人</a></div></div>
+          <div class="track" style="--done:${CUR / (STEPS.length - 1)}">${STEPS.map(([t, , , a], i) => `<button class="node ${i < CUR ? 'done' : i === CUR ? 'doing' : ''} ${i === pick ? 'on' : ''}" data-st="${i}" aria-pressed="${i === pick}">
+              <span class="dot5">${i < CUR ? icon('check', 16) : i + 1}</span><b>${t}</b><small><img src="${img(ai(a || 'xiaodao').img)}" alt="">${a ? '跟着' + ai(a).name : '小导讲'}</small></button>`).join('')}</div>
+          <div id="stepd"></div></section>
+        <aside class="card ppl"><h3>在带的新人 <span class="n">1 位</span></h3>
+          <div class="np"><span class="mf">赵</span><div class="m"><b>赵六 · 采购</b><span>11/18 加入 · 第 3 天</span><div class="pips">${STEPS.map((_, i) => `<i class="${i < CUR ? 'd' : i === CUR ? 'c' : ''}"></i>`).join('')}</div></div><button class="btn sm" id="nudge">提醒</button></div>
+          <a class="np add" href="17-新任务.html?q=小导，我是新人"><span class="mf" style="background:var(--surface-2);color:var(--text-3)">${icon('plus', 16)}</span><div class="m"><b>加一位新人</b><span>新人说「小导，我是新人」就开始</span></div></a>
+          <h3 style="margin-top:var(--sp-3)">带完的 <span class="n">平均 9 天</span></h3>
+          <div class="grads">${[['张', '张三 · 运营', '8 天 · 10/12'], ['李', '李四 · 运营', '10 天 · 10/26'], ['王', '王五 · 主管', '9 天 · 09/28']].map(([f, n, t]) => `<div><span class="mf">${f}</span>${n}<span class="t">${t}</span></div>`).join('')}</div></aside></div>`;
+    const detail = () => { const [t, learn, task, a] = STEPS[pick], A = ai(a || 'xiaodao');
+      $('#stepd').innerHTML = `<div class="stepd"><div><h4>第 ${pick + 1} 步 · 要会什么</h4><ul>${learn.map(x => `<li>${x}</li>`).join('')}</ul></div>
+        <div><h4>练习</h4><div class="task">${task}</div>${pick === CUR ? `<div class="now">${icon('clock', 13)}<span>赵六在这一步：3 条建议判断了 2 条，还差 1 条</span></div>` : pick < CUR ? '<div class="now" style="color:var(--ok)">赵六做完了</div>' : ''}</div>
+        <div class="coach"><div class="who"><img src="${img(A.img)}" alt=""><div><b>${a ? '跟着' + A.name + '实操' : '小导讲'}</b><span>${A.role}</span></div></div>${a ? `<a class="btn sm" href="${A.page}">去${A.name}工作台</a>` : '<button class="btn sm" id="map2">打开运营地图</button>'}</div></div>`;
+      $$('.node').forEach(n => { const on = +n.dataset.st === pick; n.classList.toggle('on', on); n.setAttribute('aria-pressed', on); });
+      if ($('#map2')) $('#map2').onclick = () => toast('已打开运营地图', '团队文档 · 业务基础 / 图表 / 运营地图。'); };
+    $$('.node').forEach(n => n.onclick = () => { pick = +n.dataset.st; detail(); });
+    detail();
+    $('#nudge').onclick = () => toast('已提醒赵六', '企业微信里发了一条：第 3 步还差 1 条建议没判断。');
+  }
+  const WHO = [['算一个品赚不赚钱、保本价、清货价', 'xiaoxuan', '供货页或 1688 链接；采购价、尺寸、重量'],
+    ['写 listing、做商品图、A+、上架前检查', 'xiaojia', '商品资料、供货页或亚马逊同款链接'],
+    ['广告该加该降该停、新广告算账', 'xiaotou', '不用准备，数据走 noon 接口'],
+    ['新品测款定标准、到期看结论', 'xiaoce', '商品库里要有单件毛利'],
+    ['还能卖几天、补多少、催工厂货代', 'xiaobu', '采购价、起订量、全周期要在商品库里'],
+    ['今天整体怎么样、有什么要紧的', 'xiaoxun', '不用准备，看日报和巡查记录'],
+    ['不知道找谁、说不清楚', null, '直接说，小巡会分给对的 AI 员工']];
+  function who(){
+    $('#body').innerHTML = `<div class="finder"><input class="input" id="f" placeholder="我要做什么……比如：补货、写标题、算利润、ROAS 是什么"></div>
+      <div class="map" id="map">${WHO.map(([t, a, need]) => `<a class="go" data-t="${t}" href="${a ? ai(a).page || '15-日报.html' : '17-新任务.html'}"><img src="${img(a ? ai(a).img : 'avatar-xiaoxun.webp')}" alt=""><div><b>${t}</b><span>找${a ? ai(a).name : '新任务'}${a ? ' · ' + ai(a).role : ''}</span><span class="need">要准备：${need}</span></div></a>`).join('')}</div>`;
+    $('#f').oninput = e => { const v = e.target.value.trim(); $$('.go').forEach(g => g.hidden = v && !g.dataset.t.includes(v) && !g.textContent.includes(v)); };
+  }
+  const QA = [['李四 · 16:48', '自动广告和手动广告怎么搭？', '新品先开<b>自动广告</b>跑 7 天，让 noon 帮你找词；出单的搜索词挑出来，开<b>手动广告</b>精准投，同时在自动里把这个词精确否定，避免两边抢。<ol><li>自动广告预算 SAR 30/天起，出价按保本最高点击价</li><li>每周看一次搜索词，出了 2 单以上的挪到手动</li><li>手动广告按词组匹配起步，稳定后再开精准</li></ol>', ['团队规则 · 广告结构', 'noon 帮助中心 · Sponsored Products']],
+    ['赵六 · 昨天', '全周期是从哪天算到哪天？', '从<b>今天下单</b>算到<b>货在 noon 上能卖</b>那天，中间工厂生产、国内物流、头程、入仓各段重叠的时间不重复加。我们的筋膜枪一般是 25 天，水杯 20 天。', ['术语表 · 全周期', '小补 · 补货计划']],
+    ['张三 · 11/17', 'ROAS 和 ACOS 什么关系？', 'ACOS = 广告花费 ÷ 广告销售，ROAS 正好倒过来。ROAS 3.2 就是 ACOS 31%。我们团队统一看 ROAS，和保本线比。', ['术语表 · ROAS']]];
+  function qa(){
+    const bubble = ([w, q, a, src]) => `<div class="q"><small>${w}</small>${q}</div>
+        <div class="a"><img src="img/avatar-xiaodao.webp" alt=""><div class="bd">${a}<div class="src">${src.map(x => `<span>来源：${x}</span>`).join('')}</div>
+          <div class="fb"><button data-fb="1">${icon('check', 12)} 有用</button><button data-fb="0">这条要反馈</button></div></div></div>`;
+    const HOT = [['广告结构怎么搭', 7], ['全周期从哪天算', 4], ['保本 ROAS 怎么算', 3], ['测款四种结论', 3], ['noon 退货怎么扣钱', 2]];
+    $('#body').innerHTML = OS.say('xiaodao', '本周', '这周回答了 <b>26 个问题</b>，问得最多的是<b>广告结构</b>（7 次）和<b>全周期</b>（4 次），已经写进团队常见问题；<b>找助手</b> 9 次。另外在带赵六学到<b>第 3 步</b>（看懂广告报表）。')
+      + `<div class="qa-wrap"><div class="qa" id="qa">${QA.map(bubble).join('')}
+        <div class="askbar"><input id="qin" placeholder="问小导一个问题……比如：ACOS 和 ROAS 什么关系" aria-label="问小导"><button class="btn main sm" id="qgo">${icon('arrow', 14)}问</button></div></div>
+      <aside class="rail"><section class="card pad"><h3>另外在做的</h3><div class="also">
+          <button data-go="onboard"><img src="${img(ai('xiaodao').img)}" alt=""><span><b>新人带教</b>赵六学到第 3 步：看懂广告报表</span>${icon('right', 14)}</button>
+          <button data-go="who"><span class="ic">${icon('search', 14)}</span><span><b>找助手</b>本周 9 次 · 问补货的最多</span>${icon('right', 14)}</button></div></section>
+        <section class="card pad"><h3>本周问得最多</h3><div class="hot">${HOT.map(([t, n], i) => `<button data-q="${t}"><span class="k">${i + 1}</span>${t}<span class="n">${n} 次</span></button>`).join('')}</div></section>
+        <section class="card pad"><h3>按来源找</h3><p class="t3 fs-12" style="margin-top:4px">小导只按这些资料回答，查不到会直说</p><div class="srcs">${['团队规则', '术语表', '运营地图', 'noon 帮助中心', '小投技能', '小补技能', '小测技能', '小架技能'].map(x => `<button>${x}</button>`).join('')}</div></section></aside></div>`;
+    const ask = q => { if (!q) return; $('.askbar').insertAdjacentHTML('beforebegin', bubble([`${OS.who.name} · 刚刚`, q, '我查了团队规则和术语表，正在整理……<span class="t3">（演示：上线后这里是小导的回答，注明来源）</span>', ['团队规则', '术语表']]));
+      $('#qin').value = ''; $('.askbar').scrollIntoView({behavior: 'smooth', block: 'end'}); bindFb(); };
+    $('#qgo').onclick = () => ask($('#qin').value.trim());
+    $('#qin').onkeydown = e => { if (e.key === 'Enter') ask($('#qin').value.trim()); };
+    $$('.hot button').forEach(b => b.onclick = () => ask(b.dataset.q + '？'));
+    $$('.also [data-go]').forEach(b => b.onclick = () => { scene = b.dataset.go; history.replaceState(null, '', '#' + scene); render(); });
+    $$('.srcs button').forEach(b => b.onclick = () => toast(`打开「${b.textContent}」`, '演示：上线后在右侧抽屉里看原文。'));
+    const bindFb = () => 
+$$('[data-fb]').forEach(b => b.onclick = () => toast(b.dataset.fb === '1' ? '谢谢' : '已记下反馈', b.dataset.fb === '1' ? '' : '维护者会看，改好后小导回答会更新。'));
+    bindFb();
+  }
+  function sched(){
+    $('#body').innerHTML = OS.schedTab('xiaodao', '小导平时随问随答；每周一 10:00 提醒在带的新人这周该学哪一步。');
+    OS.bindSched($('#body'));
+  }
+  function render(s = state){
+    state = s; tabs();
+    const B = $('#body');
+    if (s === '加载中') return B.innerHTML = `<div class="skel" style="height:96px;margin-bottom:16px"></div><div class="qa-wrap"><div>${states.loading(4)}</div><div class="skel" style="height:320px"></div></div>`;
+    if (s === '出错') return B.innerHTML = states.error({what: '团队文档没读到', why: '先用技能里的摘要继续讲，完整文档找维护者', next: '<button class="btn sm main">重读</button>'});
+    if (s === '没有数据') return B.innerHTML = `<div class="card">${states.empty({img: 'empty-xiaodao.webp', title: '这周还没人问过', text: '运营名词、流程、该找谁，都可以问小导；回答会注明出自哪份团队资料。', act: '<a class="btn main" href="17-新任务.html?q=小导，">问小导一个问题</a>'})}</div>`;
+    ({onboard, who, qa, sched})[scene]();
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>

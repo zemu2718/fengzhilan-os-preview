@@ -1,0 +1,9 @@
+/* HarmonyOS Sans 网页字体（字体对比用）。字体文件在 assets/fonts/harmonyos/（不进 Git，用 tools/fetch-fonts.sh 下载）。
+   授权：华为 HarmonyOS Sans 字体许可协议（同目录 LICENSE.txt）：可免费商用、可随软件分发，但不许改字体（不能裁成子集、不能转 woff2），要在软件里注明用了 HarmonyOS Sans。
+   所以网页上只能整份加载，中文每个字重约 8MB。 */
+@font-face{font-family:"HarmonyOS Sans SC";font-weight:400;font-display:swap;src:url("fonts/harmonyos/HarmonyOS_Sans_SC_Regular.ttf") format("truetype")}
+@font-face{font-family:"HarmonyOS Sans SC";font-weight:500;font-display:swap;src:url("fonts/harmonyos/HarmonyOS_Sans_SC_Medium.ttf") format("truetype")}
+@font-face{font-family:"HarmonyOS Sans SC";font-weight:600 700;font-display:swap;src:url("fonts/harmonyos/HarmonyOS_Sans_SC_Bold.ttf") format("truetype")}
+@font-face{font-family:"HarmonyOS Sans Naskh Arabic UI";font-weight:400;font-display:swap;src:url("fonts/harmonyos/HarmonyOS_Sans_Naskh_Arabic_UI_Regular.ttf") format("truetype")}
+@font-face{font-family:"HarmonyOS Sans Naskh Arabic UI";font-weight:500;font-display:swap;src:url("fonts/harmonyos/HarmonyOS_Sans_Naskh_Arabic_UI_Medium.ttf") format("truetype")}
+@font-face{font-family:"HarmonyOS Sans Naskh Arabic UI";font-weight:600 700;font-display:swap;src:url("fonts/harmonyos/HarmonyOS_Sans_Naskh_Arabic_UI_Bold.ttf") format("truetype")}

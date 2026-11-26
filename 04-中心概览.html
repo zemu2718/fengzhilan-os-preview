@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 跨境电商中心</title>
+<!-- P04 中心概览（跨境电商中心）。左侧是中心侧栏。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  .st-bar{display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center;padding:0 var(--sp-5) var(--sp-3)}
+  .st-bar .input{flex:1;min-width:160px;max-width:260px;height:32px;font-size:var(--fs-13)} .st-bar .select{width:auto;height:32px;font-size:var(--fs-13)}
+  .stores tr.grp-h td{padding:12px 12px 6px;background:none;border-bottom:0;font-size:var(--fs-13)} .stores tr.grp-h b{color:var(--text-1);margin-right:10px}
+  .stores tr.grp-h span{font-size:var(--fs-12);color:var(--text-3)} .stores td.site{padding-left:24px}
+  .stores td .roas{display:flex;align-items:center;gap:8px;min-width:100px}
+  .stores td .spend{font-size:var(--fs-12);color:var(--text-3);margin-top:2px;white-space:nowrap}
+  .stores td.todo-c .n{font-size:var(--fs-13);color:var(--text-2);white-space:nowrap} .stores td.todo-c .n b{color:var(--text-1);font-weight:600}
+  .stores td.todo-c .d{max-width:150px;font-size:var(--fs-12);color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+  .bar{position:relative;flex:1;height:5px;border-radius:3px;background:rgb(var(--rgb-tint) / .08)}
+  .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--brand-fill-lo),var(--brand-fill-hi))}
+  .bar i.low{background:var(--error)}
+  .bar b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text-1);opacity:.7}
+  .who{display:flex;align-items:center;gap:var(--sp-3);padding:10px 0;border-top:1px solid var(--divider)}
+  .who:first-child{border-top:0}
+  .who .m{min-width:0;flex:1} .who .m b{font-weight:600} .who .m .s{font-size:var(--fs-12);color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .two{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:var(--sp-4);margin-top:var(--sp-4)}
+  @media (max-width:1365px){ .two{grid-template-columns:minmax(0,1fr)} }
+</style>
+</head>
+<body>
+<main class="main" id="page">
+  <section class="pagebar enter"><span class="pb-bg" style="background-image:url(img/hero-commerce.webp);background-position:30% 45%"></span>
+    <div class="pb-who"><span class="pb-ico" style="--k:var(--dept-commerce)">商</span><div><h1>跨境电商中心</h1><div class="pb-sub"><span class="dot live"></span>3 家店 · 沙特 / 阿联酋 · 数据来自 noon 接口，17:00 同步</div></div></div>
+    <div class="pb-pills"><span class="pill">店铺 <b>3</b> 家 · <b>4</b> 个站点</span><span class="pill">AI 员工 <b>6/6</b> 在岗</span><span class="pill">成员 <b>4</b></span><a class="pill warn" href="08-等你拍板.html">等拍板 <b>3</b> 件</a></div>
+    <div class="pb-r"><div class="seg" role="group" aria-label="时间范围" id="per"></div></div>
+  </section>
+  <div id="body"></div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, icon, fmt, kpi, delta, st, taskSt, ai, member, store, img, spark, states, countUp} = OS;
+  OS.shell({active: '', side: 'overview'});
+  let per = 'week';
+  const pct = r => Math.min(100, r / 5 * 100);
+  // 店铺表：按店铺分组（同一家店的站点放一起），可以搜索、按负责人筛选、排序。店铺再多也只是表变长，不挤别的
+  let stQ = '', stO = '', stS = 'attn';
+  const RANK = {err: 0, wait: 1, ok: 2};
+  function storeRows(){
+    const q = stQ.trim().toLowerCase();
+    const L = D.stores.filter(x => (!q || x.name.toLowerCase().includes(q)) && (!stO || x.owner === stO));
+    const cmp = {attn: (a, b) => RANK[a.flag[1]] - RANK[b.flag[1]] || b.week.sales - a.week.sales, roas: (a, b) => a.week.roas - b.week.roas,
+      sales: (a, b) => a.cur.localeCompare(b.cur) || b.week.sales - a.week.sales}[stS];
+    const groups = [...new Set(L.map(x => x.brand))].map(b => L.filter(x => x.brand === b).sort(cmp));
+    groups.sort((a, b) => cmp(a[0], b[0]));
+    if (!L.length) return `<tr><td colspan="5" class="t3" style="text-align:center;padding:28px">没有符合条件的店铺</td></tr>`;
+    const money = (rows, k) => ['SAR', 'AED'].map(c => { const n = rows.filter(x => x.cur === c).reduce((t, x) => t + x.week[k], 0); return n ? `${c} ${fmt(n)}` : ''; }).filter(Boolean).join(' · ');
+    return groups.map(g => `<tr class="grp-h"><td colspan="5"><b>${g[0].brand}</b><span>${g.length} 个站点 · 销售 ${money(g, 'sales')}</span></td></tr>` + g.map(x => { const W = x.week;
+      return `<tr class="link" onclick="location.href='03-组织树.html'"><td class="site"><b>${x.site}</b><span class="sub">${st(x.flag[0], x.flag[1])}</span></td>
+        <td class="r num nowrap"><small class="t3">${x.cur}</small> ${fmt(W.sales)}<span class="sub up">${W.salesD}</span></td>        <td><div class="roas"><span class="num">${W.roas.toFixed(2)}</span><div class="bar"><i class="${W.roas < D.breakEven ? 'low' : ''}" style="width:${pct(W.roas)}%"></i><b style="left:${pct(D.breakEven)}%"></b></div></div><div class="spend num">花费 ${x.cur} ${fmt(W.spend)}</div></td>
+        <td class="todo-c"><div class="n">广告 <b>${x.todo.ads.split(' · ')[0].replace(' 条', '')}</b> · 补货 <b>${x.todo.stock}</b> · 测款 <b>${x.todo.trial.split(' · ')[0].replace(' 个在测', '')}</b></div><div class="d" title="${x.todo.ads} ；测款 ${x.todo.trial}">${x.todo.ads.split(' · ').slice(1).join(' · ') || '—'}</div></td><td class="nowrap">${member(x.owner).name}</td></tr>`; }).join('')).join('');
+  }
+  function bindStores(){
+    const B = $('#st-b'); if (!B) return;
+    $('#st-q').oninput = e => { stQ = e.target.value; B.innerHTML = storeRows(); };
+    $('#st-o').onchange = e => { stO = e.target.value; B.innerHTML = storeRows(); };
+    $$('#st-s button').forEach(b => b.onclick = () => { stS = b.dataset.s; $$('#st-s button').forEach(x => x.classList.toggle('on', x === b)); B.innerHTML = storeRows(); });
+  }
+  function render(state = '正常'){
+    $('#per').innerHTML = ['today', 'week', 'month'].map(k => `<button class="${k === per ? 'on' : ''}" data-p="${k}">${D.kpi[k].lab}</button>`).join('');
+    $$('#per button').forEach(b => b.onclick = () => { per = b.dataset.p; render(state); });
+    const B = $('#body');
+    if (state === '加载中') return B.innerHTML = `<div class="kpis">${'<div class="skel" style="height:104px"></div>'.repeat(4)}</div><div class="two"><div class="skel" style="height:220px"></div><div class="skel" style="height:220px"></div></div>`;
+    if (state === '出错') return B.innerHTML = states.error({what: '店铺数据没拉到', why: 'noon 接口 17:00 那次同步超时，下面是 16:00 的数据'}) + '<div style="opacity:.55;margin-top:16px">' + main() + '</div>';
+    if (state === '没有数据') return B.innerHTML = `<div class="card">${states.empty({img: 'empty-review.webp', title: 'noon 店铺还没接上', text: '接上 noon 官方接口后，AI 员工会自己拉广告、销售和库存数据，这里就有数了。', act: '<a class="btn main" href="16-管理后台.html#api">接入 noon 接口</a><button class="btn">上传后台导出的文件</button>'})}</div>`;
+    B.innerHTML = main(); countUp(B); bindStores();
+  }
+  function main(){
+    const K = D.kpi[per];
+    const opsN = 14;
+    return `<div class="kpis">
+      ${kpi({l: `${K.lab}销售额 · 沙特三站`, v: fmt(K.sales), pre: 'SAR', d: `${delta(K.cmp, K.salesD)} · 阿联酋 AED ${fmt(K.aed.sales)} 另算`})}
+      ${kpi({l: '广告花费 · 沙特三站', v: fmt(K.spend), pre: 'SAR', d: `${K.cmp} ${K.spendD} · 阿联酋 AED ${fmt(K.aed.spend)}`})}
+      ${kpi({l: `投产比 ROAS · 保本 ${D.breakEven.toFixed(2)}`, v: K.roas.toFixed(2), sp: K.spark})}
+      <a class="kpi warn" href="08-等你拍板.html" style="display:block"><div class="l">要处理的</div><div class="v num">${D.approvals.pending.length}<small style="margin-left:6px">件等拍板</small></div><div class="d">补货申请 1 · 测款 1 · 广告 4 条（张三提交）</div></a>
+    </div>
+    <div class="two">
+      <section class="card"><div class="card-h"><h3>店铺</h3><span class="more">${K.range}</span></div>
+        <div class="st-bar"><input class="input" id="st-q" placeholder="搜索店铺或站点" aria-label="搜索店铺或站点" value="${stQ}">
+          <select class="select" id="st-o" aria-label="负责人"><option value="">全部负责人</option>${[...new Set(D.stores.map(x => x.owner))].map(o => `<option value="${o}"${o === stO ? ' selected' : ''}>${member(o).name}</option>`).join('')}</select>
+          <div class="seg" id="st-s" role="group" aria-label="排序">${[['attn', '要处理的优先'], ['roas', 'ROAS 低的优先'], ['sales', '销售高的优先']].map(([k, l]) => `<button data-s="${k}" class="${k === stS ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+        <div class="card-b tbl-wrap"><table class="tbl stores"><thead><tr><th>店铺 · 站点</th><th class="r">销售</th><th>ROAS · 保本线 · 广告花费</th><th>要处理的</th><th>负责</th></tr></thead><tbody id="st-b">${storeRows()}</tbody></table></div></section>
+      <section class="card"><div class="card-h"><h3>谁在干活</h3><a class="more" href="12-AI员工.html">全部 ${icon('right', 12)}</a></div>
+        <div class="card-b">
+          ${D.ai.filter(a => a.id !== 'xiaoxun').map(a => `<div class="who"><div class="ava ${a.status === 'on' ? '' : 'off'}"><img src="${img(a.img)}" alt=""><span class="hb"></span></div>
+            <div class="m"><b>${a.name}</b> <span class="t3 fs-12">${a.role}</span><div class="s">${a.status === 'on' ? `${a.now.task} · 第 ${a.now.step + 1}/${a.now.steps.length} 步` : `${a.later}接入`}</div></div>
+            ${a.status === 'on' ? st('执行中', 'run') : st(a.later, 'off')}</div>`).join('')}
+          ${D.people.members.map(m => `<div class="who"><span class="mf">${m.name[0]}</span><div class="m"><b>${m.name}</b> <span class="t3 fs-12">${m.role}${m.store ? ' · ' + store(m.store).name : ''}</span><div class="s">${m.now}</div></div></div>`).join('')}
+        </div></section>
+    </div>
+    <section class="card section"><div class="card-h"><h3>最近任务</h3><a class="more" href="10-任务.html">全部任务 ${icon('right', 12)}</a></div>
+      <div class="card-b tbl-wrap"><table class="tbl"><thead><tr><th>任务</th><th>状态</th><th>AI 员工</th><th>负责</th><th>时间</th></tr></thead><tbody>
+      ${D.tasks.filter(t => t.store).slice(0, 5).map(t => `<tr class="link" onclick="location.href='11-运行详情.html?run=${t.run || 'R-20261119-003'}'"><td><b>${t.name}</b> · ${store(t.store).name}<span class="sub">${t.sub}</span></td><td>${taskSt(t.status)}</td><td>${ai(t.ai).name}</td><td>${member(t.owner).name}</td><td class="t3 nowrap">${t.time}</td></tr>`).join('')}
+      </tbody></table></div></section>`;
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>

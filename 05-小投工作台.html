@@ -1,0 +1,895 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<title>风之岚 OS · 小投工作台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/topbar.css">
+<link rel="stylesheet" href="assets/wbband.css">
+<link rel="stylesheet" href="assets/schedule.css">
+<style>
+  /* 设计变量见 assets/tokens.css（这里用的旧变量名在 tokens.css 末尾有别名） */
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--ink);color:var(--text);font:14px/1.55 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+  body{background:var(--ink);min-height:100vh}
+  .num{font-variant-numeric:tabular-nums}
+  .serif{font-family:"Noto Serif SC","Songti SC",serif}
+  button{font:inherit;color:inherit}
+  a{color:inherit}
+  [hidden]{display:none!important}
+
+  /* ---------- 顶栏 ---------- */
+  header{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:16px;height:var(--hd);padding:0 24px;background:rgb(var(--rgb-deep) / .72);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);border-bottom:1px solid var(--line)}
+  .brand{display:flex;font:700 18px/1 "Noto Serif SC","Songti SC",serif;letter-spacing:.1em;align-items:baseline;gap:8px}
+  .brand small{font:600 11px/1 -apple-system,sans-serif;letter-spacing:.36em;color:var(--gold)}
+  .crumb{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+  /* 头部和其他五个工作台同一个通栏横幅：样式在 assets/wbband.css（.pagebar.flush.wbband） */
+  .bcrumb{font-size:12px;color:var(--dim);margin-bottom:2px} .bcrumb a{cursor:pointer;color:inherit} .bcrumb a:hover{color:var(--text)}
+  .crumb b{color:var(--text);font-weight:600} .crumb a{cursor:pointer;text-decoration:none;color:inherit} .crumb a:hover{color:var(--text)}
+  .spacer{flex:1}
+  .stat{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+  .badge{min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--vermilion);color:#fff;font-size:12px;font-weight:700;display:inline-grid;place-items:center}
+  .me{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--me-a),var(--me-b));border:1px solid var(--line-2);display:grid;place-items:center;font-size:12px}
+  .dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;display:inline-block}
+  .live{animation:pulse 2s infinite} @keyframes pulse{50%{opacity:.35}}
+
+  /* ---------- 布局 ---------- */
+  .shell{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - var(--hd))}
+  /* 侧栏：数值和共用侧栏（components.css 的 .side、.side-g、.side a.item）一样，三个工作台看起来一致 */
+  nav.side{position:sticky;top:var(--hd);height:calc(100vh - var(--hd) - 96px);overflow:auto;padding:16px 12px;border-right:1px solid var(--divider);background:rgb(var(--rgb-deep) / .6)}
+
+  .planet{width:34px;height:34px;border-radius:50%;background:url(img/zoom-commerce.webp) 24.9% 68%/292% auto;box-shadow:0 0 0 2px rgba(242,181,68,.5),0 0 18px rgba(242,181,68,.35)}
+  .dept b{display:block;font-size:14px} .dept span{font-size:12px;color:var(--muted)}
+  .nav-g{font-size:11px;line-height:17px;letter-spacing:.14em;color:var(--text-3);padding:14px 10px 4px;margin:0}
+  .nav-i{display:flex;align-items:center;gap:10px;padding:8px 10px;margin:2px 0;line-height:20px;border-radius:10px;color:var(--text-2);font-size:13px;cursor:pointer;text-decoration:none;transition:background var(--t-hover)}
+  .nav-i:hover{background:rgb(var(--rgb-tint) / .05);color:var(--text-1)}
+  .nav-i.on{background:linear-gradient(90deg,rgba(242,181,68,.14),rgba(242,181,68,.03));color:var(--text-1);box-shadow:inset 2px 0 0 var(--brand)}
+  .nav-i.lock{opacity:.55;cursor:not-allowed} .nav-i.lock img{filter:grayscale(1)}
+  nav.side .tag{margin-left:auto;display:inline-flex;align-items:center;padding:0 7px;border-radius:5px;font-size:11px;line-height:18px;white-space:nowrap;color:var(--k,var(--text-2));background:color-mix(in srgb,var(--k,var(--text-2)) 14%,transparent)}
+  .nav-i svg{width:16px;height:16px;flex:none}
+  .nav-i img{width:22px;height:22px;object-fit:contain;flex:none}
+  .nav-sub{padding-left:22px}
+  main{min-width:0}
+
+  /* ---------- 通用 ---------- */
+  .card{background:var(--glass);border:1px solid var(--line);border-radius:var(--r);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+  .btn{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 18px;border-radius:12px;background:linear-gradient(135deg,#F7C766,#E39A2E);color:#1b1305;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(242,181,68,.3);transition:var(--t-panel);white-space:nowrap}
+  .btn:hover{filter:brightness(1.06);transform:translateY(-1px)}
+  .btn[disabled]{opacity:.4;pointer-events:none;box-shadow:none}
+  .btn.ghost{background:rgb(var(--rgb-tint) / .07);color:var(--text);box-shadow:none;font-weight:500;border:1px solid var(--line)}
+  .btn.sm{padding:6px 12px;font-size:12.5px;border-radius:10px}
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:99px;background:rgb(var(--rgb-deep) / .6);border:1px solid var(--line);font-size:12.5px;color:var(--muted);white-space:nowrap}
+  .chip b{color:var(--text)}
+  .f-chip{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:99px;border:1px solid var(--line);font-size:12.5px;color:var(--muted);white-space:nowrap}
+  .f-chip:hover{border-color:var(--line-2);color:var(--text)}
+  .f-chip.on{background:rgb(var(--rgb-tint) / .1);color:var(--text);border-color:var(--line-2)}
+  .f-chip i{width:8px;height:8px;border-radius:2px;display:inline-block}
+  .muted{color:var(--muted)} .dim{color:var(--dim)}
+
+
+  /* ---------- 工作台首页（P04b） ---------- */
+  .home{padding:28px 32px 60px}
+  .shell > main{max-width:calc(var(--wb-max) + 2 * var(--sp-6))}
+  .home h1{margin:0 0 4px;font-size:26px;letter-spacing:.06em}
+  .home > p{margin:0 0 18px;color:var(--muted)}
+  .cats{display:flex;gap:8px;margin-bottom:18px;overflow-x:auto;scrollbar-width:none}
+  .emps{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+  .emp{padding:18px;border-radius:18px;position:relative;overflow:hidden;transition:var(--t-panel) var(--ease);cursor:pointer}
+  .emp:hover{transform:translateY(-2px);border-color:var(--line-2);box-shadow:0 18px 40px rgba(0,0,0,.35)}
+  .emp.off{cursor:not-allowed;opacity:.55} .emp.off:hover{transform:none;box-shadow:none}
+  .emp.off img{filter:grayscale(1) brightness(.8)}
+  .emp-h{display:flex;align-items:center;gap:12px}
+  .emp-h img{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(0,0,0,.4))}
+  .emp-h b{font-size:17px} .emp-h > div > span{display:block;font-size:12.5px;color:var(--muted)}
+  .emp p{margin:12px 0 14px;color:var(--muted);font-size:13px;min-height:40px}
+  .emp .scn{display:flex;gap:8px;flex-wrap:wrap}
+  .emp .ft{margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;color:var(--dim);display:flex;justify-content:space-between}
+  .emp.on::before{content:"";position:absolute;inset:-40% -20% auto auto;width:220px;height:220px;background:radial-gradient(circle,rgba(242,181,68,.18),transparent 70%)}
+  .recent{margin-top:22px}
+  .recent .item{display:flex;align-items:center;gap:14px;padding:12px 18px;border-top:1px solid rgb(var(--rgb-warm) / .07);font-size:13px;color:var(--muted);cursor:pointer}
+  .recent .item:hover{background:rgb(var(--rgb-tint) / .03)}
+  .recent .item b{color:var(--text);font-weight:600}
+  .st{padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600}
+  .st.wait{color:var(--gold-2);background:rgba(242,181,68,.12)} .st.done{color:var(--ok);background:rgba(94,230,160,.1)}
+
+  /* ---------- 小投工作台 ---------- */
+  .ws{display:flex;flex-direction:column;height:calc(100vh - var(--hd) - 96px)}
+  .tabs{margin-left:auto;display:flex;gap:4px;padding:4px;border-radius:14px;background:rgb(var(--rgb-deep) / .7);border:1px solid var(--line)}
+  .tab{all:unset;cursor:pointer;padding:8px 16px;border-radius:10px;color:var(--muted);font-size:13.5px;white-space:nowrap}
+  .tab:hover{color:var(--text)}
+  .tab.on{background:linear-gradient(135deg,rgba(242,181,68,.25),rgba(242,181,68,.08));color:var(--text);box-shadow:inset 0 0 0 1px rgba(242,181,68,.4)}
+
+  .split{flex:1;display:grid;grid-template-columns:minmax(380px,40%) 1fr;grid-template-rows:minmax(0,1fr);min-height:0}
+  .left,.right{overflow:hidden}
+  .left{overflow:auto}
+  /* 左：本次任务 */
+  .left{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}
+  /* 对话跟着内容往下排；内容超过一屏时，提问框贴在底部 */
+  .thread{flex:none;padding:18px 24px 10px 32px;display:flex;flex-direction:column;gap:14px}
+  .blk{padding:16px 18px}
+  .blk-h{display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:12px}
+  .blk-h small{font-weight:400;color:var(--dim);font-size:12px}
+  .blk-h .sp{flex:1}
+  label.f{display:block;font-size:12.5px;color:var(--muted);margin:0 0 6px}
+  label.f i{color:var(--vermilion);font-style:normal}
+  .select,.inp{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:10px;background:rgb(var(--rgb-tint) / .05);border:1px solid var(--line);font-size:13px}
+  .select{cursor:pointer}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row3{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:10px}
+  .fld{margin-bottom:14px}
+  .drop{border-radius:14px;border:1.5px dashed rgba(242,181,68,.4);background:linear-gradient(180deg,rgba(242,181,68,.06),rgba(242,181,68,.01));padding:16px 14px;text-align:center;cursor:pointer;transition:var(--t-panel)}
+  .drop:hover{border-color:var(--gold);background:rgba(242,181,68,.09)}
+  .drop svg{width:26px;height:26px;color:var(--gold)}
+  .drop b{display:block;margin-top:4px} .drop span{font-size:12px;color:var(--dim)}
+  .file{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;background:rgba(94,230,160,.06);border:1px solid rgba(94,230,160,.3);margin-top:8px}
+  .file .ic{width:34px;height:34px;border-radius:9px;background:#1f6f4a;display:grid;place-items:center;font-weight:800;font-size:11px;color:#d9ffe9;flex:none}
+  .file b{display:block;font-size:13px} .file span{font-size:12px;color:var(--muted)}
+  .file .x{margin-left:auto;color:var(--dim);cursor:pointer}
+  .sheets{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .sheets span{font-size:11.5px;padding:1px 8px;border-radius:6px;background:rgba(94,230,160,.1);color:var(--ok)}
+  .adv{border-top:1px solid var(--line);margin-top:4px;padding-top:12px}
+  .adv summary{cursor:pointer;color:var(--muted);font-size:13px;list-style:none;display:flex;align-items:center;gap:6px}
+  .adv summary::-webkit-details-marker{display:none}
+  .adv summary::before{content:"▸";transition:var(--t-panel)} .adv[open] summary::before{transform:rotate(90deg)}
+  .adv .in{padding-top:12px}
+  .radio{display:flex;gap:14px;font-size:13px;color:var(--muted);align-items:center;flex-wrap:wrap}
+  .radio span{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+  .radio span::before{content:"";width:14px;height:14px;border-radius:50%;border:1.5px solid var(--line-2)}
+  .radio span.on{color:var(--text)} .radio span.on::before{border:4px solid var(--gold)}
+  .tagin{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 8px;border-radius:10px;background:rgb(var(--rgb-tint) / .05);border:1px solid var(--line);min-height:38px}
+  .tg{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:7px;background:rgb(var(--rgb-tint) / .08);font-size:12.5px}
+  .tg i{font-style:normal;color:var(--dim);cursor:pointer}
+  .hint{font-size:11.5px;color:var(--dim);margin-top:4px}
+  .go{display:flex;align-items:center;gap:12px;justify-content:flex-end;margin-top:14px}
+  .go .dim{font-size:12px}
+
+  /* 参数摘要（运行后折叠） */
+  .sum-p{display:flex;align-items:flex-start;gap:12px;padding:12px 14px}
+  .sum-p .t{flex:1;font-size:13px;color:var(--muted)} .sum-p .t b{color:var(--text)}
+  .from-tag{font-size:11.5px;color:var(--gold-2);margin-bottom:6px}
+
+  /* 运行进度 */
+  .run-top{display:flex;align-items:center;gap:12px}
+  .run-top img{width:48px;height:48px;object-fit:contain;animation:float 3s ease-in-out infinite}
+  @keyframes float{50%{transform:translateY(-4px)}}
+  .run-top h3{margin:0;font-size:16px} .run-top p{margin:0;color:var(--muted);font-size:12.5px}
+  .run-top .t{margin-left:auto;font-size:20px;font-weight:600;color:var(--gold-2)}
+  .orbit-wrap{margin:6px auto 0}
+  .orbit-wrap svg{width:100%;height:auto;display:block;overflow:visible}
+  .o-path{fill:none;stroke:rgba(242,181,68,.25);stroke-width:1.5}
+  .o-done{fill:none;stroke:url(#og);stroke-width:2.5;stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(255,200,100,.8))}
+  .o-sun{filter:drop-shadow(0 0 22px rgba(255,190,80,.8))}
+  .node circle.b{fill:#262D39;stroke:rgba(242,181,68,.35);stroke-width:1.5;transition:var(--t-enter)}
+  .node.on circle.b{fill:#F2B544;stroke:#FFE7A8;filter:drop-shadow(0 0 10px rgba(255,200,100,.9))}
+  .node.cur circle.b{fill:#262D39;stroke:#FFD98A;stroke-width:2.5;animation:ring 1s ease-in-out infinite}
+  @keyframes ring{50%{stroke-opacity:.3}}
+  .node text{fill:var(--muted);font-size:15px;text-anchor:middle}
+  .node.on text,.node.cur text{fill:var(--text)}
+  .steps{display:grid;gap:6px;margin-top:8px}
+  .step{display:flex;gap:10px;align-items:center;padding:7px 10px;border-radius:10px;background:rgb(var(--rgb-tint) / .03);font-size:12.5px;color:var(--dim)}
+  .step b{color:var(--muted);font-weight:600;width:96px;flex:none}
+  .step em{margin-left:auto;font-style:normal}
+  .step.on b{color:var(--text)} .step.on::before{content:"✓";color:var(--ok)} .step:not(.on)::before{content:"○"}
+  .step.cur::before{content:"◌";color:var(--gold-2)}
+  .leave{margin-top:10px;font-size:12px;color:var(--dim);text-align:center}
+  .done-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);padding:10px 14px}
+  .done-line i{font-style:normal;color:var(--ok)}
+  .done-line a{margin-left:auto;color:var(--gold-2);text-decoration:none;cursor:pointer}
+
+  /* 总结和追问 */
+  /* 顶部总结气泡：和其他工作台同一个 .wsay（wbband.css），左右和横幅对齐 */
+  .ws-say{flex:none;padding:18px 32px 0} .ws-say:empty{display:none} .ws-say .wsay{margin:6px 0 2px}
+  .letter{display:flex;gap:14px;padding:14px 16px;border-radius:16px;background:linear-gradient(135deg,rgb(var(--rgb-ink) / .07),rgb(var(--rgb-ink) / .02));border:1px solid var(--line-2)}
+  .letter img{width:52px;height:52px;object-fit:contain;flex:none}
+  .letter .from{font-size:12px;color:var(--dim)}
+  .letter p{margin:4px 0 0;font-size:14px;line-height:1.7}
+  .letter p b{color:var(--gold-2);font-weight:600}
+  .qa{display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:88%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.65;animation:open var(--t-enter) var(--ease)}
+  @keyframes open{from{opacity:0;transform:translateY(6px)}}
+  .msg.me{align-self:flex-end;background:rgba(127,180,255,.14);border:1px solid rgba(127,180,255,.25);border-bottom-right-radius:4px}
+  .msg.ai{align-self:flex-start;background:rgb(var(--rgb-tint) / .05);border:1px solid var(--line);border-bottom-left-radius:4px}
+  .msg.ai b{color:var(--gold-2);font-weight:600}
+  .msg .meta{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:11.5px;color:var(--dim)}
+  .msg .who{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);margin-bottom:4px}
+  .msg .who img{width:20px;height:20px;object-fit:contain}
+  .typing::after{content:"▍";animation:pulse 1s infinite;color:var(--gold-2)}
+  .ask{position:sticky;bottom:0;z-index:2;padding:6px 24px 16px 32px;background:linear-gradient(rgb(var(--rgb-deep) / 0),var(--ink) 22px)}
+  .quick{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .quick .f-chip{font-size:12px;padding:4px 10px}
+  .box{display:flex;align-items:flex-end;gap:10px;padding:10px 10px 10px 14px;border-radius:14px;background:rgb(var(--rgb-tint) / .05);border:1px solid var(--line-2)}
+  .box input{all:unset;flex:1;font-size:13.5px;color:var(--text);min-height:24px}
+  .box input::placeholder{color:var(--dim)}
+  .send{all:unset;cursor:pointer;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,#F7C766,#E39A2E);color:#1b1305;font-weight:800}
+  .ask .note{font-size:11.5px;color:var(--dim);margin-top:6px;text-align:center}
+  .ask.off{opacity:.45;pointer-events:none}
+
+  /* 算账结果 */
+  .calc-row{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:14px}
+  .select span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .calc-res{padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,rgba(242,181,68,.1),rgba(242,181,68,.02));border:1px solid rgba(242,181,68,.3)}
+  .calc-res h4{margin:0 0 10px;font-size:14px}
+  .calc-g{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .calc-g div{font-size:12px;color:var(--muted)} .calc-g b{display:block;font-size:20px;color:var(--text);font-weight:600}
+  .calc-g b.g{color:var(--gold-2)}
+  .warn{margin-top:10px;font-size:12.5px;color:var(--gold-2)}
+
+  /* 定时 */
+  .sch{padding:14px 16px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 14px;align-items:start}
+  .sch .sw{width:36px;height:20px;border-radius:99px;background:rgb(var(--rgb-tint) / .12);position:relative;cursor:pointer;margin-top:2px}
+  .sch .sw::after{content:"";position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--dim);transition:var(--t-panel)}
+  .sch .sw.on{background:rgba(94,230,160,.35)} .sch .sw.on::after{left:19px;background:var(--ok)}
+  .sch b{font-size:14px} .sch p{margin:2px 0 0;font-size:12.5px;color:var(--muted)}
+  .sch .log{grid-column:2;font-size:12px;color:var(--dim);margin-top:6px}
+
+  /* 右：常驻面板 */
+  .right{display:flex;flex-direction:column;min-height:0}
+  .ptabs{display:flex;align-items:center;gap:4px;padding:12px 32px 0 20px;border-bottom:1px solid var(--line)}
+  .ptab{all:unset;cursor:pointer;padding:10px 14px;color:var(--muted);font-size:13.5px;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+  .ptab:hover{color:var(--text)}
+  .ptab.on{color:var(--text);border-color:var(--gold)}
+  .ptab .n{font-size:11.5px;color:var(--dim);margin-left:4px}
+  .ptabs .sp{flex:1}
+  .pbody{flex:1;overflow:auto;padding:16px 32px 20px 20px;position:relative}
+  .pane{display:none} .pane.on{display:block}
+  .empty{text-align:center;padding:40px 20px}
+  .empty img{width:220px;margin:-10px auto -4px;display:block}
+  .empty h3{margin:0 0 6px;font-size:19px} .empty p{color:var(--muted);margin:0 auto 16px;max-width:400px}
+  .tips{display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+  .tip{width:170px;text-align:left;padding:10px 12px;border-radius:12px;background:rgb(var(--rgb-tint) / .04);border:1px solid var(--line);font-size:12px;color:var(--muted)}
+  .tip b{display:block;color:var(--text);margin-bottom:2px}
+  .skel{border-radius:12px;background:linear-gradient(90deg,rgb(var(--rgb-tint) / .04),rgb(var(--rgb-tint) / .09),rgb(var(--rgb-tint) / .04));background-size:200% 100%;animation:sk 1.4s infinite}
+  @keyframes sk{to{background-position:-200% 0}}
+
+  .r-head{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:13px;color:var(--muted)}
+  .r-head b{color:var(--text)} .r-head .sp{flex:1}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+  .kpi{padding:12px 14px;border-radius:14px;background:rgb(var(--rgb-tint) / .04);border:1px solid var(--line)}
+  .kpi .l{font-size:12px;color:var(--muted)} .kpi .v{font-size:21px;font-weight:600;line-height:1.3;white-space:nowrap} .kpi .v small{font-size:11.5px;color:var(--muted);font-weight:500;margin-right:3px} .kpi .d{font-size:11.5px;color:var(--dim)}
+  .kpi.hl{background:linear-gradient(135deg,rgba(242,181,68,.16),rgba(242,181,68,.03));border-color:rgba(242,181,68,.35)}
+  .bar{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+  .search{margin-left:auto;display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:10px;background:rgb(var(--rgb-tint) / .04);border:1px solid var(--line);color:var(--dim);font-size:12.5px;min-width:170px}
+
+  table{width:100%;border-collapse:separate;border-spacing:0}
+  /* 「为什么」只在宽屏显示（窄的时候点 ▾ 展开看） */
+  th.why,td.why{display:none}
+  @media (min-width:1680px){ th.why,td.why{display:table-cell;width:34%} td.why span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12.5px;color:var(--muted);line-height:1.5} }
+  th{font-size:12px;font-weight:500;color:var(--dim);text-align:left;padding:9px 8px;white-space:nowrap;border-bottom:1px solid var(--line)}
+  th.r,td.r{text-align:right;white-space:nowrap}
+  td{padding:11px 8px;border-bottom:1px solid rgb(var(--rgb-warm) / .07);vertical-align:middle;font-size:13px}
+  tr.row{cursor:pointer;transition:background var(--t-hover)}
+  tr.row:hover td{background:rgb(var(--rgb-tint) / .03)}
+  tr.row.off td:not(.c){opacity:.42}
+  .kw b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:190px} .kw span{font-size:12px;color:var(--dim)}
+  .kw .keep{font-size:11px;color:var(--batch);margin-left:6px}
+  .auth{display:inline-block;margin-left:6px;font-size:11px;font-weight:500;padding:0 6px;border-radius:5px;line-height:18px;white-space:nowrap}
+  .auth.mine{color:var(--ok);background:rgba(94,230,160,.1)} .auth.boss{color:var(--gold-2);background:rgba(242,181,68,.12)}
+  .type{white-space:nowrap;display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:8px;font-size:12.5px;font-weight:600}
+  .t-up{color:var(--up);background:rgba(242,181,68,.12)} .t-down{color:var(--down);background:rgba(127,180,255,.12)}
+  .t-stop{color:var(--stop);background:rgba(255,107,107,.12)} .t-neg{color:var(--neg);background:rgba(169,178,200,.12)}
+  .roas{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+  .roas .track{width:56px;height:5px;border-radius:5px;background:rgb(var(--rgb-tint) / .08);position:relative;overflow:hidden}
+  .roas .track i{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
+  .roas .track u{position:absolute;top:-2px;bottom:-2px;width:1.5px;background:rgb(var(--rgb-tint) / .5)}
+  .impact{color:var(--ok);font-weight:600;white-space:nowrap} .impact.o{color:var(--gold-2)}
+  .cb{width:18px;height:18px;border-radius:5px;border:1.5px solid var(--line-2);display:grid;place-items:center;transition:var(--t-hover)}
+  .cb.on{background:var(--gold);border-color:var(--gold)}
+  .cb.on::after{content:"";width:9px;height:5px;border:2px solid #1b1305;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+  .chev{color:var(--dim);transition:transform var(--t-panel)} tr.open .chev{transform:rotate(180deg)}
+  tr.detail{display:none} tr.detail.open{display:table-row}
+  tr.detail td{padding:0;background:rgb(var(--rgb-tint) / .02)}
+  tr.detail .in{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;padding:6px 12px 14px 44px;animation:open var(--t-enter) var(--ease)}
+  .why b{display:block;font-size:12px;color:var(--dim);font-weight:500;margin-bottom:4px}
+  .why p{margin:0 0 10px;font-size:13px;color:var(--muted)}
+  .rule{display:inline-block;padding:2px 8px;border-radius:6px;background:rgb(var(--rgb-tint) / .06);font-size:12px;color:var(--muted);margin:0 6px 6px 0}
+  .to-kw{display:flex;gap:6px;align-items:center;margin-top:4px;font-size:12px;color:var(--dim);width:max-content}
+  .mini b{display:block;font-size:12px;color:var(--dim);font-weight:500;margin-bottom:6px}
+  .legend{display:flex;gap:12px;font-size:11.5px;color:var(--dim);margin-top:4px}
+  .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
+
+  .submit{display:none;align-items:center;gap:14px;margin:0 32px 16px 20px;padding:10px 12px 10px 18px;border-radius:16px;background:var(--surface-2);border:1px solid var(--line-2);box-shadow:0 -10px 40px rgba(0,0,0,.35)}
+  body.s-done.p-sug .submit{display:flex}
+  .submit .sel{font-size:13.5px;white-space:nowrap} .submit .sel b{font-size:17px}
+  .submit .save{color:var(--muted);font-size:12.5px} .submit .save b{color:var(--ok);font-size:15px}
+  .submit .sp{flex:1}
+
+  .lib-h{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+  .lib-h h3{margin:0;font-size:15px} .lib-h small{color:var(--dim);font-size:12px}
+  .lib-h .sp{flex:1}
+  .src{font-size:11.5px;padding:1px 7px;border-radius:6px;background:rgb(var(--rgb-tint) / .07);color:var(--muted);white-space:nowrap}
+  .src.calc{color:var(--gold-2);background:rgba(242,181,68,.12)}
+  .warn-c{color:var(--stop)}
+  .kt{font-size:11.5px;padding:2px 8px;border-radius:6px;white-space:nowrap;font-weight:600}
+  .kt.keep{color:#CDB2FF;background:rgba(185,140,255,.14)} .kt.brand{color:var(--gold-2);background:rgba(242,181,68,.12)}
+  .kt.root{color:var(--down);background:rgba(127,180,255,.12)} .kt.zh{color:var(--ok);background:rgba(94,230,160,.1)}
+  .lib-note{margin-top:12px;padding:10px 12px;border-radius:12px;background:rgb(var(--rgb-tint) / .03);border:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+  .hist .item{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid rgb(var(--rgb-warm) / .07);font-size:13px;color:var(--muted)}
+  .hist .item b{color:var(--text);font-weight:600}
+  .prog{display:flex;gap:3px} .prog i{width:14px;height:5px;border-radius:3px;background:rgb(var(--rgb-tint) / .1)} .prog i.y{background:var(--gold)}
+
+  .chk{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  .chk div{display:flex;gap:8px;align-items:flex-start;padding:8px 12px;border-radius:10px;font-size:12.5px}
+  .chk .ok{background:rgba(94,230,160,.07);border:1px solid rgba(94,230,160,.22);color:var(--muted)} .chk .ok b{color:var(--ok);white-space:nowrap}
+  .chk .wn{background:rgba(242,181,68,.08);border:1px solid rgba(242,181,68,.3);color:var(--muted)} .chk .wn b{color:var(--gold-2);white-space:nowrap}
+  .act{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+  #pSug table{table-layout:fixed}
+  #pSug .kw b{max-width:100%}
+  .ai-tag,.hold-tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:6px;margin-top:4px;line-height:1.5}
+  .ai-tag{color:#CDB2FF;background:rgba(185,140,255,.14)} .hold-tag{color:var(--down);background:rgba(127,180,255,.12)}
+  .t-plus{color:var(--ok);background:rgba(94,230,160,.1)} .t-fix{color:#CDB2FF;background:rgba(185,140,255,.14)}
+  tr.foot td{color:var(--dim);font-size:12.5px;cursor:pointer} tr.foot:hover td{color:var(--text)}
+  .btn.lockd{opacity:.45;cursor:not-allowed}
+
+  /* 轻提示 */
+  .toast{position:fixed;left:50%;top:84px;z-index:40;transform:translate(-50%,-20px);opacity:0;pointer-events:none;display:flex;align-items:center;gap:12px;padding:12px 18px;border-radius:14px;background:var(--surface-2);border:1px solid rgba(242,181,68,.45);box-shadow:0 0 40px rgba(242,181,68,.25);transition:var(--t-enter) var(--ease)}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast img{width:36px;height:36px;object-fit:contain}
+
+  /* 演示条 */
+  .demo{position:fixed;left:12px;bottom:14px;z-index:35;display:flex;align-items:center;gap:2px;padding:4px;border-radius:12px;background:rgb(var(--rgb-deep) / .9);border:1px solid var(--line);font-size:12px}
+  .demo span{padding:4px 6px 4px 10px;color:var(--dim)}
+  .demo button{all:unset;cursor:pointer;padding:4px 9px;border-radius:8px;color:var(--muted)}
+  .demo button.on{background:rgb(var(--rgb-tint) / .12);color:var(--text)}
+  .demo .x{padding:4px 6px} .demo.min > :not(:first-child):not(.x){display:none}
+
+  /* 窄屏：右侧面板改为抽屉 */
+  .drawer-btn{display:none}
+  @media (max-width:1279px){
+    .split{grid-template-columns:1fr}
+    .right{position:fixed;top:var(--hd);right:0;bottom:0;width:min(720px,92vw);z-index:28;background:var(--ink-2);border-left:1px solid var(--line-2);box-shadow:-30px 0 60px rgba(0,0,0,.5);transform:translateX(100%);transition:var(--t-enter) var(--ease)}
+    body.drawer .right{transform:none}
+    .drawer-btn{display:inline-flex}
+  }
+  /* 平板、手机：和其他页面一样收起侧栏（从顶栏「工作台」或横幅面包屑进各位 AI 员工），主区按内容往下排 */
+  @media (max-width:1023px){
+    .shell{grid-template-columns:minmax(0,1fr)}
+    nav.side{display:none}
+    .ws{height:auto}
+    .left{overflow:visible;border-right:0}
+    .thread{padding:16px}
+    .ask{padding:6px 16px 16px}
+    .ws-say{padding:12px 16px 0}
+    .home{padding:20px 16px 48px}
+  }
+  @media (max-width:767px){
+    .emps{grid-template-columns:minmax(0,1fr)!important}
+    .kpis{grid-template-columns:1fr 1fr}
+  }
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body class="v-ws sc-review s-done p-sug" data-as="m-zs">
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <radialGradient id="sun" cx="38%" cy="34%" r="72%"><stop offset="0" stop-color="#FFF3CC"/><stop offset=".42" stop-color="#F7C766"/><stop offset=".8" stop-color="#E39A2E"/><stop offset="1" stop-color="#B4561E"/></radialGradient>
+    <linearGradient id="og" x1="0" x2="1"><stop offset="0" stop-color="#FFE7A8"/><stop offset="1" stop-color="#F2B544"/></linearGradient>
+  </defs>
+</svg>
+
+
+<div class="demo min" id="demoBar">
+  <span>演示</span><button data-v="home">工作台首页</button><button data-v="ws" class="on">小投工作台</button>
+  <span>复盘状态</span><button data-s="idle">填参数</button><button data-s="run">运行中</button><button data-s="done" class="on">结果</button>
+  <button class="x" id="demoX" title="展开 / 收起">▾</button>
+</div>
+
+<section class="pagebar flush wbband" id="bandWs"><span class="pb-bg" style="background-image:url(img/wb-xiaotou.webp);background-position:62% 50%"></span>
+  <a class="wb-center" href="04-中心概览.html"><span class="ico">商</span><div><b>跨境电商中心</b><span>3 家店 · 沙特 / 阿联酋</span></div></a>
+  <div class="pb-who"><img src="img/avatar-xiaotou.webp" alt=""><div><div class="pb-crumb"><a data-go="home">工作台</a><span id="crumbWs"> / 小投</span></div><h1>小投 · 广告</h1><div class="pb-sub"><span class="dot live"></span>在岗 · 负责人 张三 · 只出建议，改广告要初审和拍板</div></div></div>
+  <div class="pb-pills"><button class="pill pick" id="storePick" title="切换店铺" aria-haspopup="dialog">店铺 <b>云屿商店 · 沙特</b> ▾</button><span class="pill">本周 <b>7</b> 次</span><span class="pill">费用 <b>¥2.90</b></span><span class="pill">采纳率 <b>84%</b></span></div>
+  <div class="pb-r"><div class="seg" id="scTabs" role="tablist"><button class="on" data-sc="review">广告复盘</button><button data-sc="calc">投前算账</button><button data-sc="sched">定时</button></div><button class="btn ghost sm drawer-btn" id="dw2">面板 ▸</button></div>
+</section>
+<section class="pagebar flush wbband" id="bandHome" hidden><span class="pb-bg" style="background-image:url(img/zoom-commerce.webp);background-position:40% 46%"></span>
+  <a class="wb-center" href="04-中心概览.html"><span class="ico">商</span><div><b>跨境电商中心</b><span>3 家店 · 沙特 / 阿联酋</span></div></a>
+  <div class="pb-who"><div><div class="pb-crumb">跨境电商中心 /</div><h1>工作台</h1><div class="pb-sub">选一个 AI 员工，或直接点它能做的事</div></div></div>
+  <div class="pb-pills"><span class="pill">在岗 <b>6/6</b></span><span class="pill">本周运行 <b>40</b> 次</span><a class="pill" href="05-小投工作台.html#done" style="color:var(--brand-hi)">待我处理 <b>14</b></a></div>
+</section>
+
+<div class="shell">
+  <nav class="side">
+    <a class="nav-i" href="04-中心概览.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(-20 12 12)"/></svg>概览</a>
+    <a class="nav-i" id="navHome" data-go="home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>工作台</a>
+    <a class="nav-i nav-sub" href="05f-小导工作台.html"><img src="img/avatar-xiaodao.webp" alt="">小导 · 向导</a>
+    <a class="nav-i nav-sub" href="05e-小选工作台.html"><img src="img/avatar-xiaoxuan.webp" alt="">小选 · 选品</a>
+    <a class="nav-i nav-sub" href="05d-小架工作台.html"><img src="img/avatar-xiaojia.webp" alt="">小架 · 上架</a>
+    <a class="nav-i nav-sub on" id="navWs" data-go="ws"><img src="img/avatar-xiaotou.webp" alt="">小投 · 广告</a>
+    <a class="nav-i nav-sub" href="05b-小测工作台.html"><img src="img/avatar-xiaoce.webp" alt="">小测 · 测款</a>
+    <a class="nav-i nav-sub" href="05c-小补工作台.html"><img src="img/avatar-xiaobu.webp" alt="">小补 · 补货</a>
+    <div class="nav-g">中心</div>
+    <a class="nav-i" href="10-任务.html?center=commerce"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16M3 10h5"/></svg>任务<span class="tag num">7</span></a>
+    <a class="nav-i" href="20-定时任务.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>定时任务</a>
+    <a class="nav-i" href="11-运行详情.html?run=R-20261119-003"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12h10M10 6l6 6-6 6"/><path d="M20 4v16"/></svg>运行和执行记录</a>
+    <a class="nav-i" href="12-AI员工.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="9" r="4"/><path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/></svg>AI 员工</a>
+  </nav>
+
+  <main>
+    <!-- ================= P04b 中心工作台首页 ================= -->
+    <section class="home" id="vHome" hidden>
+      <div class="cats"><button class="f-chip on">全部</button><button class="f-chip">向导</button><button class="f-chip">选品</button><button class="f-chip">上架</button><button class="f-chip">广告</button><button class="f-chip">测款</button><button class="f-chip">补货</button></div>
+      <div class="emps">
+        <a class="card emp on" href="05f-小导工作台.html" style="color:inherit;text-decoration:none">
+          <div class="emp-h"><img src="img/avatar-xiaodao.webp" alt=""><div><b>小导</b><span><span class="dot live" style="color:var(--ok)"></span> 向导 · 在岗</span></div></div>
+          <p>带新人上手 noon，告诉你一件事该找谁，回答运营问题。</p>
+          <div class="scn"><span class="btn sm">日常问答</span><span class="btn ghost sm">找助手</span><span class="btn ghost sm">新人带教</span></div>
+          <div class="ft"><span>本周回答 26 个 · 在带 1 位新人</span><span>本周 26 次 · ¥1.4</span></div>
+        </a>
+        <a class="card emp on" href="05e-小选工作台.html" style="color:inherit;text-decoration:none">
+          <div class="emp-h"><img src="img/avatar-xiaoxuan.webp" alt=""><div><b>小选</b><span><span class="dot live" style="color:var(--ok)"></span> 选品 · 在岗</span></div></div>
+          <p>算 noon 沙特 FBN 的利润、保本价、建议售价、清货价，给候选商品排利润。</p>
+          <div class="scn"><span class="btn sm">算利润</span><span class="btn ghost sm">清货价</span><span class="btn ghost sm">候选商品</span></div>
+          <div class="ft"><span>16:30 算完 H096</span><span>本周 11 次 · ¥0.9</span></div>
+        </a>
+        <a class="card emp on" href="05d-小架工作台.html" style="color:inherit;text-decoration:none">
+          <div class="emp-h"><img src="img/avatar-xiaojia.webp" alt=""><div><b>小架</b><span><span class="dot live" style="color:var(--ok)"></span> 上架 · 在岗</span></div></div>
+          <p>写英文和阿语 listing，排 7 张商品图、A+ 和视频，上架前检查；上架要拍板。</p>
+          <div class="scn"><span class="btn sm">写 listing</span><span class="btn ghost sm">商品图</span><span class="btn ghost sm">上架前检查</span></div>
+          <div class="ft"><span>在改 H039-2 水杯的 listing</span><span>本周 14 次 · ¥6.8</span></div>
+        </a>
+        <div class="card emp on" data-go="ws">
+          <div class="emp-h"><img src="img/avatar-xiaotou.webp" alt=""><div><b>小投</b><span><span class="dot live" style="color:var(--ok)"></span> 广告 · 在岗</span></div></div>
+          <p>看广告数据，告诉你哪些词该加、该降、该停，拍板后替你改；新广告上线前帮你算账。</p>
+          <div class="scn"><button class="btn sm" data-go="ws" data-sc="review">广告复盘</button><button class="btn ghost sm" data-go="ws" data-sc="calc">投前算账</button></div>
+          <div class="ft"><span>下次 明天 15:00 · 云屿商店 · 沙特</span><span>本周 7 次 · ¥2.9</span></div>
+        </div>
+        <a class="card emp on" href="05b-小测工作台.html" style="color:inherit;text-decoration:none">
+          <div class="emp-h"><img src="img/avatar-xiaoce.webp" alt=""><div><b>小测</b><span><span class="dot live" style="color:var(--ok)"></span> 测款 · 在岗</span></div></div>
+          <p>新品开测前定本轮标准；到了复盘日按销量、退货、广告花费和单件毛利下结论，达标的交给小补。</p>
+          <div class="scn"><span class="btn sm">测款复盘</span><span class="btn ghost sm">测款计划</span></div>
+          <div class="ft"><span>今天 15:07 复盘 5 个 · 1 件等拍板</span><span>本周 9 次 · ¥2.2</span></div>
+        </a>
+        <a class="card emp on" href="05c-小补工作台.html" style="color:inherit;text-decoration:none">
+          <div class="emp-h"><img src="img/avatar-xiaobu.webp" alt=""><div><b>小补</b><span><span class="dot live" style="color:var(--ok)"></span> 补货 · 在岗</span></div></div>
+          <p>算每个商品还能卖几天、补多少、最晚哪天下单，出补货申请；给工厂、货代写消息草稿。</p>
+          <div class="scn"><span class="btn sm">补货计划</span><span class="btn ghost sm">在途</span><span class="btn ghost sm">消息草稿</span></div>
+          <div class="ft"><span>今天 15:06 · 补货申请 3 个等决策层</span><span>本周 8 次 · ¥1.6</span></div>
+        </a>
+      </div>
+      <form class="ask-home" action="17-新任务.html" style="display:flex;gap:10px;align-items:center;margin:18px 0;padding:12px 12px 12px 18px;border-radius:18px;background:var(--surface-1);border:1px solid var(--line)">
+        <input name="q" aria-label="新任务" placeholder="直接交代一件事，比如：筋膜枪 X2 如果下周才下单，会断货几天？" style="all:unset;flex:1;font-size:14px;color:var(--text)">
+        <input type="hidden" name="as" value="m-zs"><button class="btn" type="submit">新任务</button></form>
+      <section class="card recent">
+        <div style="padding:14px 18px 6px;font-weight:600">最近任务</div>
+        <div class="item" data-go="ws"><span class="st wait">待拍板</span><b>广告复盘</b><span>云屿商店 · 沙特 · 14 条建议</span><span style="flex:1"></span><span>小投 · 今天 15:05</span>▸</div>
+        <div class="item" data-go="ws" data-sc="calc"><span class="st done">已完成</span><b>投前算账</b><span>H039-2 水杯 · 保本 ROAS 2.40</span><span style="flex:1"></span><span>张三 · 昨天</span>▸</div>
+        <div class="item" data-go="ws"><span class="st done">已完成</span><b>广告复盘</b><span>星帆商店 · 阿联酋 · 7 条 · 执行 4/7</span><span style="flex:1"></span><span>小投 · 11/15</span>▸</div>
+      </section>
+    </section>
+
+    <!-- ================= P05–P07 小投工作台 ================= -->
+    <section class="ws" id="vWs">
+      <div class="ws-say" id="wsSay"></div>
+
+      <div class="split">
+        <!-- ---------- 左：本次任务 ---------- -->
+        <div class="left">
+          <!-- 广告复盘 -->
+          <div class="thread" id="tReview">
+            <!-- 参数卡（填参数状态） -->
+            <section class="card blk" id="pForm">
+              <div class="from-tag" id="fromTag" hidden>基于 11/16 的参数，改完会生成一次新的运行</div>
+              <div class="blk-h">广告复盘 <small>数据来自 noon 接口；拍板前不改线上</small></div>
+                            <div class="fld"><label class="f">数据 <i>*</i></label>
+                <div class="drop" id="drop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg><b>从 noon 接口拉取 云屿商店 · 沙特近 7 天的广告数据</b><span>每小时自动同步 · 接口出错时也可以拖入后台导出的文件（<u>怎么导出</u>）</span></div>
+                <div id="files" hidden>
+                  <div class="file"><div class="ic">API</div><div><b>云屿商店 · 沙特 · 广告数据（接口 17:00 同步）</b><span class="num">342 行 · 11/10–11/16 · 7 天</span><div class="sheets"><span>广告 ✓</span><span>商品 ✓</span><span>定向词 ✓</span><span>搜索词 ✓</span><span>否定词 ✓</span><span>投放位置 ✓</span></div></div><span class="x" id="rm">✕</span></div>
+                </div>
+              </div>
+              <div class="fld"><label class="f">毛利表（可选，用来算保本 ROAS）</label><div class="select"><span>已关联：毛利测算-水杯系列</span><span style="color:var(--gold)">更换</span></div>
+                <div class="hint">商品库已有 6 个商品的保本 ROAS，可以不传毛利表</div></div>
+              <details class="adv">
+                <summary>高级设置 <span class="dim" style="font-size:12px">不填就用商品库和默认值</span></summary>
+                <div class="in">
+                  <div class="fld"><label class="f">保本 ROAS</label>
+                    <div class="radio"><span class="on">按商品库</span><span>按毛利表</span><span>全部统一 <span class="inp" style="padding:3px 8px;width:64px;display:inline-flex">3.0</span></span></div></div>
+                  <div class="row2">
+                    <div class="fld"><label class="f">留给利润</label><div class="inp"><span class="num">25%</span><span class="dim" style="font-size:12px">清货填 0</span></div></div>
+                    <div class="fld"><label class="f">自家品牌 <span class="dim">（带品牌名的词不建议否定）</span></label><div class="tagin"><span class="tg">fengzhi <i>✕</i></span><span class="dim" style="font-size:12px" data-b>来自词库</span></div></div>
+                  </div>
+                  <div class="fld"><label class="f">现在售价 <span class="dim">（报了活动价的写活动价，不填用商品库）</span></label><div class="tagin"><span class="tg">H039-2 = 27 <i>✕</i></span><span class="dim" style="font-size:12px">+ 加一个</span></div></div>
+                  <div class="row2">
+                    <div class="fld"><label class="f">只看商品 <span class="dim">（不填看全店）</span></label><div class="tagin"><span class="dim" style="font-size:12px">+ 选商品</span></div></div>
+                    <div class="fld"><label class="f">没货的商品</label><div class="tagin"><span class="tg">H021 保温杯 <i>✕</i></span><span class="dim" style="font-size:12px">接口可售库存为 0</span></div></div>
+                  </div>
+                </div>
+              </details>
+              <div class="go"><span class="dim">预计约 40 秒 · 约 ¥0.4</span><button class="btn" id="go" disabled>开始复盘</button></div>
+            </section>
+
+            <!-- 参数摘要（运行后） -->
+            <section class="card sum-p" id="pSum" hidden>
+              <div class="t"><b>云屿商店 · 沙特</b> · 数据 <b class="num">11/10–11/16</b>（342 行）<br>保本 ROAS 按商品库 · H039-2 现价 27 · 留利 25% · 自家品牌 fengzhi · H021 没货</div>
+              <button class="btn ghost sm" id="rerun">改参数重跑</button>
+            </section>
+
+            <!-- 运行进度 -->
+            <section class="card blk" id="pRun" hidden>
+              <div class="run-top"><img src="img/avatar-xiaotou.webp" alt=""><div><h3>小投正在复盘…</h3><p>云屿商店 · 沙特 · 11/10–11/16 · 342 行</p></div><div class="t num" id="timer">0.0s</div></div>
+              <div class="orbit-wrap">
+                <svg viewBox="0 0 760 230">
+                  <ellipse class="o-path" cx="380" cy="110" rx="330" ry="80"/>
+                  <path id="op" class="o-done" d="M50 110 A330 80 0 0 0 710 110" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/>
+                  <circle class="o-sun" cx="380" cy="110" r="36" fill="url(#sun)"/>
+                  <circle id="spark" r="5" fill="#FFF3CC" style="filter:drop-shadow(0 0 10px #FFD98A)"/>
+                  <g class="node"><circle class="b" cx="50" cy="110" r="11"/><text x="50" y="150">拉取数据</text></g>
+                  <g class="node"><circle class="b" cx="212" cy="179" r="11"/><text x="212" y="215">按规则计算</text></g>
+                  <g class="node"><circle class="b" cx="548" cy="179" r="11"/><text x="548" y="215">看搜索词、写总结</text></g>
+                  <g class="node"><circle class="b" cx="710" cy="110" r="11"/><text x="710" y="150">生成复盘页</text></g>
+                </svg>
+              </div>
+              <div class="steps">
+                <div class="step"><b>拉取数据</b><span>—</span><em></em></div>
+                <div class="step"><b>按规则计算</b><span>—</span><em></em></div>
+                <div class="step"><b>看词、写总结</b><span>—</span><em></em></div>
+                <div class="step"><b>生成复盘页</b><span>—</span><em></em></div>
+              </div>
+              <div class="leave">可以离开这个页面，完成后会在「等你拍板」和企业微信里通知你。</div>
+            </section>
+
+            <!-- 完成后：步骤一行 + 总结 + 追问 -->
+            <section class="card done-line" id="pDone" hidden>
+              <span><i>✓</i> 读取 2 秒</span><span><i>✓</i> 计算 3 秒</span><span><i>✓</i> 看词 31 秒</span><span><i>✓</i> 复盘页 2 秒</span>
+              <span>· 共 <b class="num">38 秒</b> · <b class="num">¥0.42</b></span><a>运行详情 ▸</a>
+            </section>
+            <div class="letter" id="pLetter" hidden>
+              <div><div class="from">小投 · 15:05 · 另外几件</div>
+                <p>2 个搜索词和商品不相关，建议否定；<b>insulated bottle for kids</b> 其实相关，我没建议否定，H044 的商品页要补上「保温」。<b>kids water bottle</b> 出了 3 单，可以单独开手动广告。还有 6 个词在观察、14 个点击太少，7 天后再看。</p>
+                <p class="dim" style="font-size:12px;margin-top:6px" data-b>按词库，fengzhi bottle 没有建议否定；1 条 7 天内改过的先不动</p>
+              </div>
+            </div>
+            <div class="qa" id="qa" hidden></div>
+          </div>
+
+          <!-- 投前算账 -->
+          <div class="thread" id="tCalc" hidden>
+            <section class="card blk">
+              <div class="blk-h">投前算账 <small>新广告上线前，算一单最多能花多少广告费</small></div>
+              <div class="calc-row"><div><label class="f">商品</label><div class="select"><span>H039-2 水杯 500ml</span><span class="dim">从商品库选 ▾</span></div><div class="hint">商品库里没有的，可以直接手填</div></div><div><label class="f">售价 SAR</label><div class="inp num">30</div></div><div><label class="f">单件毛利 SAR</label><div class="inp num">12.5</div></div></div>
+              <div class="row2"><div class="fld"><label class="f">留给利润</label><div class="inp num">25%</div><div class="hint">清货只求卖掉时填 0</div></div><div class="fld"><label class="f">转化率 <span class="dim">（可不填）</span></label><div class="inp num">8%</div><div class="hint">后台 Orders ÷ Clicks</div></div></div>
+              <div class="go" style="justify-content:space-between"><button class="btn ghost sm">+ 再算一个</button><span class="dim">纯计算，不花模型费</span><button class="btn">开始算账</button></div>
+            </section>
+            <section class="calc-res">
+              <h4>H039-2 水杯 500ml <span class="dim" style="font-weight:400;font-size:12px">· 售价 30 · 毛利 12.5 · 留利 25% · 转化 8%</span></h4>
+              <div class="calc-g">
+                <div>保本 ROAS<b class="g num">2.40</b>低于它就在亏</div>
+                <div>目标 ROAS<b class="num">6.00</b>留出 25% 利润</div>
+                <div>一单最多花<b class="num">SAR 5.00</b>按目标</div>
+                <div>最高点击价<b class="num">SAR 0.40</b>按目标、转化 8%</div>
+                <div>保本点击价<b class="num">SAR 1.00</b>超过就开始亏</div>
+              </div>
+              <div class="hint" style="margin-top:10px">脚本 ads-calc.mjs 实算。脚本的提醒（比如利润不够留给广告、转化率没填）原样显示在这里，这次没有提醒。</div>
+              <div class="go"><button class="btn ghost sm" id="saveCalc">存进商品库</button></div>
+            </section>
+          </div>
+
+          <!-- 定时 -->
+          <div class="thread" id="tSched" hidden></div>
+
+          <!-- 追问框 -->
+          <div class="ask" id="ask" data-b>
+            <div class="quick" id="quick">
+              <button class="f-chip">哪些词亏得最多？</button>
+              <button class="f-chip">water bottle 为什么只降价不停？</button>
+              <button class="f-chip">把 H039 保本 ROAS 改成 4 再算</button>
+            </div>
+            <div class="box"><input id="qin" placeholder="问小投这次复盘的问题…（只回答，不改数据）"><button class="send" id="qsend">↑</button></div>
+            <div class="note">每次追问约 ¥0.02，记在这件任务下</div>
+          </div>
+        </div>
+
+        <!-- ---------- 右：常驻面板 ---------- -->
+        <div class="right">
+          <div class="ptabs" id="pTabs">
+            <button class="ptab on" data-p="sug">建议<span class="n num" id="nSug">14</span></button>
+            <button class="ptab" data-p="prod">商品库<span class="n num">6</span></button>
+            <button class="ptab" data-p="kw" data-b>词库<span class="n num">9</span></button>
+            <button class="ptab" data-p="hist">历史</button>
+            <span class="sp"></span>
+            <button class="btn ghost sm drawer-btn" id="dwClose">收起 ✕</button>
+          </div>
+          <div class="pbody">
+            <!-- 建议 -->
+            <div class="pane on" id="pSug">
+              <div class="empty" id="sIdle">
+                <img src="img/empty-review.webp" alt="">
+                <h3 class="serif">还没有复盘</h3>
+                <p>选好店铺，小投会通过 noon 接口读完每一个广告、商品和关键词，按团队规则给出建议。</p>
+                <button class="btn ghost" id="sample">用示例数据试一下</button>
+                <div class="tips">
+                  <div class="tip"><b>拍板前不动线上</b>没拍板不改出价、不停广告</div>
+                  <div class="tip"><b>每条都有依据</b>展开能看到数据和触发的规则</div>
+                  <div class="tip"><b>你先初审</b>权限内的直接批，超出的提交拍板人；通过后小投通过接口执行，能撤回</div>
+                </div>
+              </div>
+              <div id="sRun" hidden>
+                <div class="kpis"><div class="skel" style="height:78px"></div><div class="skel" style="height:78px"></div><div class="skel" style="height:78px"></div><div class="skel" style="height:78px"></div></div>
+                <div class="skel" style="height:30px;width:60%;margin-bottom:12px"></div>
+                <div class="skel" style="height:44px;margin-bottom:8px"></div><div class="skel" style="height:44px;margin-bottom:8px"></div><div class="skel" style="height:44px;margin-bottom:8px"></div><div class="skel" style="height:44px"></div>
+              </div>
+              <div id="sDone" hidden>
+                <div class="r-head"><span>云屿商店 · 沙特 · <b>11/10–11/16</b> · 7 天</span><span class="sp"></span><a class="btn ghost sm">下载复盘页</a></div>
+                <div class="chk">
+                  <div class="ok"><b>✓ 数据检查通过</b>搜索词花费占广告花费 96%，满 7 天，6 张表都读到了</div>
+                  <div class="wn"><b>⚠ 请确认</b>H052 吸管杯的售价用的是商品库里的 26，报了活动价的话在高级设置里改现价再跑</div>
+                </div>
+                <div class="kpis">
+                  <div class="kpi"><div class="l">广告花费</div><div class="v num"><small>SAR</small>8,420</div><div class="d">较上周 +6%</div></div>
+                  <div class="kpi"><div class="l">广告销售额</div><div class="v num"><small>SAR</small>26,900</div><div class="d">较上周 +11%</div></div>
+                  <div class="kpi hl"><div class="l">ROAS</div><div class="v num" style="color:var(--gold-2)">3.19</div><div class="d">按商品比保本：4 高 · 1 低 · 1 没货</div></div>
+                  <div class="kpi"><div class="l">建议</div><div class="v num">14 条</div><div class="d">另有观察 6 · 低量 14</div></div>
+                </div>
+                <div class="bar" id="filters">
+                  <div class="search">⌕ 搜索词、商品或广告</div>
+                </div>
+                <table>
+                  <thead><tr><th style="width:34px"></th><th style="width:240px">对象</th><th>建议</th><th class="why">为什么</th><th class="r" style="width:56px">花费</th><th class="r" style="width:48px">订单</th><th class="r" style="width:112px" title="竖线是这个商品的保本 ROAS">ROAS</th><th style="width:24px"></th></tr></thead>
+                  <tbody id="rows"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 商品库 -->
+            <div class="pane" id="pProd">
+              <div class="lib-h"><h3>商品库</h3><small>云屿商店 · 沙特 · 小投用保本 ROAS，小补用采购资料，小测用单件毛利；库存和销量来自接口</small><span class="sp"></span><button class="btn ghost sm">从毛利表更新</button><button class="btn ghost sm">+ 加商品</button></div>
+              <table>
+                <thead><tr><th>商品</th><th class="r">售价</th><th class="r">单件毛利</th><th class="r">保本 ROAS</th><th class="r">可售库存</th><th class="r">采购价</th><th class="r">起订 / 每箱</th><th class="r">全周期</th><th>来源</th><th>更新</th></tr></thead>
+                <tbody id="prodRows"></tbody>
+              </table>
+              <div class="lib-note">主管和负责运营可以改；每次改动记下是谁、什么时候改的。保本 ROAS = 售价 ÷ 单件毛利。</div>
+            </div>
+
+            <!-- 词库 -->
+            <div class="pane" id="pKw">
+              <div class="lib-h"><h3>词库</h3><small>云屿商店 · 沙特 · 团队对搜索词的判断，复盘时自动带入</small><span class="sp"></span><button class="btn ghost sm">+ 加词</button></div>
+              <div class="bar" id="kwF">
+                <button class="f-chip on" data-k="all">全部 9</button><button class="f-chip" data-k="keep">先别否定 3</button><button class="f-chip" data-k="brand">自家品牌 1</button><button class="f-chip" data-k="root">词根 2</button><button class="f-chip" data-k="zh">中文意思 3</button>
+              </div>
+              <table><thead><tr><th>词</th><th>类型</th><th>内容 / 理由</th><th>来源</th></tr></thead><tbody id="kwRows"></tbody></table>
+              <div class="lib-note">词库里不放否定词：否定词以广告后台为准，每次通过接口读取。「先别否定」的词在建议里默认不勾。</div>
+            </div>
+
+            <!-- 历史 -->
+            <div class="pane hist" id="pHist">
+              <div class="lib-h"><h3>历史</h3><small>拍板和执行进度、执行后效果</small></div>
+              <div class="item"><b>今天</b><span>云屿商店 · 沙特 · 14 条</span><span style="flex:1"></span><span>待拍板</span><div class="prog"><i class="y"></i><i></i><i></i></div><span>—</span></div>
+              <div class="item"><b>11/16</b><span>云屿商店 · 沙特 · 11 条</span><span style="flex:1"></span><span>已拍板 10 · 已执行 10</span><div class="prog"><i class="y"></i><i class="y"></i><i class="y"></i></div><span>ROAS 2.98 → 3.19</span></div>
+              <div class="item"><b>11/15</b><span>星帆商店 · 阿联酋 · 7 条</span><span style="flex:1"></span><span>已拍板 7 · 执行中 4/7</span><div class="prog"><i class="y"></i><i class="y"></i><i></i></div><span>等次日数据</span></div>
+              <div class="item"><b>11/16</b><span>投前算账 · H039-2</span><span style="flex:1"></span><span>保本 ROAS 2.40</span><div class="prog"></div><span>张三</span></div>
+              <div class="item"><b>11/12</b><span>云屿商店 · 沙特 · 15 条</span><span style="flex:1"></span><span>已拍板 12 · 已执行 12</span><div class="prog"><i class="y"></i><i class="y"></i><i class="y"></i></div><span>ROAS 2.61 → 2.98</span></div>
+            </div>
+          </div>
+          <div class="submit">
+            <div class="sel" style="white-space:nowrap">已选 <b class="num" id="selN">11</b> 条 · 直批 <b class="num" id="mineN">0</b> · 提交拍板 <b class="num" id="bossN">0</b></div>
+            <div class="save">涉及近 7 天花费 <b class="num" id="save">SAR 0</b></div>
+            <div class="sp"></div>
+            <button class="btn" id="submit" title="你的权限：单条出价改动不超过 10%、否定、停掉没出单的、没货先停；通过后小投通过 noon 接口执行">直批 <span id="selN2">0</span> 条 · 提交拍板 <span id="bossN2">0</span> 条</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"><img src="img/avatar-xiaotou.webp" alt=""><div><b id="toastT">已提交拍板</b><div style="font-size:12.5px;color:var(--muted)" id="toastD"></div></div></div>
+
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>OS.mountTop('');</script>
+<script>
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const B = document.body;
+
+// ---------- 假数据 ----------
+const rows = [
+  {k:'H021 保温杯 600ml',o:'商品',c:'SP-保温杯-手动',t:'没货',a:'先停这个商品的广告',sp:64,or:0,ro:0,be:2.65,cl:58,rule:'商品没货还在花钱：没货先停，最先说',why:'商品库库存为 0，商品表里 Is Visible 是 No，广告还在跑。'},
+  {k:'thermos flask big',o:'定向词',c:'SP-保温杯-手动',t:'停',a:'停这个定向词',sp:28,or:0,ro:0,be:2.65,cl:41,rule:'0 单、点击够了：出价先降 10%，下次还是 0 单再停',why:'11/09 复盘已降 10%（张三执行），这 7 天还是 0 单。'},
+  {k:'water bottle',o:'定向词',c:'SP-水杯-广泛',t:'降价',a:'降 20%：0.85 → 0.68',sp:310,or:4,ro:0.80,be:2.40,cl:212,rule:'ROAS 低于保本、点击够了：降 20%（在亏钱）',why:'ROAS 0.80，保本 2.40。一次调整不超过 20%。'},
+  {k:'gym bottle',o:'定向词',c:'SP-运动水壶-广泛',t:'降价',a:'降 10%：0.70 → 0.63',sp:98,or:9,ro:3.60,be:2.36,cl:96,rule:'ROAS 在保本和目标之间：降 10%',why:'ROAS 3.60，在保本 2.36 和目标 5.78 之间。'},
+  {k:'1l bottle',o:'定向词',c:'SP-水杯-手动',t:'降价',a:'降 10%：0.55 → 0.50',sp:40,or:0,ro:0,be:2.40,cl:38,rule:'0 单、点击够了：出价先降 10%，下次还是 0 单再停',why:'0 单；这个广告转化率 4%，够下结论的点击数是 25 次。'},
+  {k:'stainless bottle 750ml',o:'定向词',c:'SP-水杯-手动',t:'降价',a:'降 10%：0.62 → 0.56',sp:71,or:6,ro:3.10,be:2.40,cl:80,rule:'ROAS 在保本和目标之间：降 10%',why:'ROAS 3.10，在保本 2.40 和目标 6.00 之间。',hold:'11/14 已降 10%，到 11/21 再看',off:1},
+  {k:'SP-水杯-精准 · Top of search',o:'投放位置',c:'加价 50%',t:'位置',a:'加价降一半：50% → 25%',sp:0,or:0,ro:2.10,be:2.40,cl:0,camp:1,rule:'给某个位置加了价、那块明显更贵：加价降一半',why:'Top of search 这块 ROAS 2.10，其他位置 4.02。'},
+  {k:'baby bottle',o:'搜索词',c:'SP-自动',t:'否定',a:'否定（精确）· SP-自动',sp:22,or:0,ro:0,be:2.55,cl:24,rule:'0 单、点击够了：否定（精确）',why:'点击够了还是 0 单。',ai:'小投：搜的是奶瓶，不相关'},
+  {k:'glass bottle',o:'搜索词',c:'SP-自动',t:'否定',a:'否定（精确）· SP-自动',sp:36,or:0,ro:0,be:2.40,cl:31,rule:'0 单、点击够了：否定（精确）',why:'点击够了还是 0 单。',ai:'小投：搜玻璃瓶，我们卖不锈钢，不相关'},
+  {k:'insulated bottle for kids',o:'搜索词',c:'SP-自动',t:'否定',a:'否定（精确）· SP-自动',sp:19,or:0,ro:0,be:2.55,cl:20,rule:'0 单、点击够了：否定（精确）；先看相不相关，相关的转给小架补商品页',why:'规则上该否定，但词和 H044 儿童水杯相关。',ai:'小投：相关，先别否定。H044 也保温，商品页没写到，建议小架补上',off:1},
+  {k:'kids water bottle',o:'搜索词',c:'SP-自动',t:'加新词',a:'手动定向、词组匹配；自动广告里精确否定它',sp:52,or:3,ro:7.54,be:2.55,cl:44,rule:'2 单以上、ROAS 达到目标：加成新词',why:'3 单，ROAS 7.54，达到 H044 的目标 7.00。'},
+  {k:'water bottle with straw',o:'定向词',c:'SP-吸管杯-精准',t:'加价',a:'加 10%：0.60 → 0.66',sp:64,or:7,ro:9.69,be:2.48,cl:58,rule:'ROAS 比目标高四成以上：加 10%，一次只加一点',why:'ROAS 9.69，比 H052 的目标 6.50 高 49%。'},
+  {k:'SP-吸管杯-精准',o:'广告',c:'每天预算 SAR 50',t:'预算',a:'加预算（要先批准）',sp:0,or:0,ro:5.20,be:2.48,cl:0,camp:1,rule:'当天预算花完、ROAS 又不低：预算被卡',why:'7 天里 5 天预算花完，ROAS 5.20。'},
+  {k:'H044 儿童水杯',o:'商品',c:'SP-儿童水杯-自动',t:'修商品页',a:'先修商品页，转给小架；不建议加价',sp:180,or:4,ro:2.80,be:2.55,cl:362,rule:'商品转化率不到其他商品的一半：先修商品页',why:'转化率 1.1%，其他商品平均 3.0%；加购多、下单少，多半是价格或送达时间。'},
+];
+// 运营的授权范围（初稿，决策层可调）：单条出价改动不超过 10%、否定、停掉没出单的、没货先停、转给别的 AI 员工；其余提交拍板人
+const MINE = r => ['没货','停','否定','修商品页'].includes(r.t) || ((r.t==='降价'||r.t==='加价') && +((r.a.match(/(\d+)%/)||[])[1]) <= 10);
+const TYPES=['没货','停','降价','位置','否定','加新词','加价','预算','修商品页'];
+const tlabel={没货:'没货先停',停:'停',降价:'降价',位置:'位置降加价',否定:'否定',加新词:'加新词',加价:'加价',预算:'预算被卡',修商品页:'先修商品页'};
+rows.forEach(x=>x.on=x.off?0:1);
+const prods = [
+  ['H039-2 水杯 500ml',30,12.5,2.40,120,'投前算账','calc','11/16 张三',8.2,'100 / 50',20],
+  ['H039-3 水杯 750ml',36,15.0,2.40,86,'毛利表','','11/12',9.6,'100 / 40',20],
+  ['H021 保温杯 600ml',45,17.0,2.65,0,'毛利表','','11/12',12.0,'200 / 50',28],
+  ['H044 儿童水杯',28,11.0,2.55,210,'毛利表','','11/12',6.4,'100 / 50',20],
+  ['H050 运动水壶 1L',39,16.5,2.36,64,'手填','','11/15 李四',9.8,'100 / 25',24],
+  ['H052 吸管杯',26,10.5,2.48,150,'毛利表','','11/12',null,null,null],
+];
+const kws = [
+  ['water bottle kids','keep','先别否定','新品测试期，先看两周','11/16 复盘 · 张三'],
+  ['fengzhi bottle','keep','先别否定','带自家品牌，转化慢但要保曝光','11/12 复盘 · 主管'],
+  ['tumbler with handle','keep','先别否定','对标竞品的词，观察中','手填 · 张三'],
+  ['fengzhi','brand','自家品牌','带这个词的搜索词不建议否定','手填 · 主管'],
+  ['bottle*','root','词根','「水杯」：含 bottle 的词合并统计','手填 · 张三'],
+  ['tumbler*','root','词根','「保温杯」：含 tumbler 的词合并统计','手填 · 张三'],
+  ['زجاجة ماء','zh','中文意思','水瓶（阿语）','11/16 复盘 · 小投'],
+  ['قارورة','zh','中文意思','瓶子（阿语）','11/16 复盘 · 小投'],
+  ['termos','zh','中文意思','保温瓶（拼写变体）','11/12 复盘 · 小投'],
+];
+
+// ---------- 建议表 ----------
+const tcls={没货:'t-stop',停:'t-stop',降价:'t-down',位置:'t-down',否定:'t-neg',加新词:'t-plus',加价:'t-up',预算:'t-up',修商品页:'t-fix'};
+const MAX=10;
+function mini(r){
+  const w=240,h=56,bw=w/7,d=[.9,1.1,1,1.05,.95,1.1,.9].map(x=>r.sp/7*x),s2=d.map((v,i)=>r.ro*v*[1,.8,1.2,.9,1.1,1,1][i]),m=Math.max(...d,...s2,1); let g='';
+  d.forEach((v,i)=>{const x=i*bw+4,a=v/m*(h-8),b=s2[i]/m*(h-8);
+    g+=`<rect x="${x}" y="${h-a}" width="${bw/2-4}" height="${a}" rx="2" fill="#7FB4FF" opacity=".75"/><rect x="${x+bw/2-2}" y="${h-b}" width="${bw/2-4}" height="${b}" rx="2" fill="#5EE6A0" opacity=".85"/>`});
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}">${g}</svg>`;
+}
+let cur='all';
+function render(){
+  const list=rows.map((r,i)=>[r,i]).filter(([r])=>cur==='all'||r.t===cur);
+  $('#rows').innerHTML = list.map(([r,i])=>{
+    const pct=Math.min(r.ro/MAX,1)*100, col=r.ro>=r.be?'var(--gold)':'var(--stop)';
+    const kw=(r.t==='否定')?`<div class="to-kw" data-b>加进词库：<button class="btn ghost sm" data-kw="${i}">先别否定</button><button class="btn ghost sm" data-kw="${i}">自家品牌</button></div>`:'';
+    const tags=(r.ai?`<span class="ai-tag">${r.ai}</span>`:'')+(r.hold?`<span class="hold-tag" data-b>${r.hold}</span>`:'');
+    return `<tr class="row ${r.on?'':'off'}" data-i="${i}">
+      <td class="c"><div class="cb ${r.on?'on':''}"></div></td>
+      <td class="kw"><b>${r.k}</b><span>${r.o} · ${r.c}</span>${tags?'<br>'+tags:''}</td>
+      <td><span class="type ${tcls[r.t]}">${tlabel[r.t]}</span><span class="act">${r.a}</span>${MINE(r)?'<span class="auth mine">你可直批</span>':'<span class="auth boss">需提交拍板</span>'}</td>
+      <td class="why"><span title="${r.why}">${r.why}</span></td>
+      <td class="r num">${r.camp?'—':r.sp}</td><td class="r num">${r.camp?'—':r.or}</td>
+      <td class="r"><div class="roas"><span class="num" style="color:${col}">${r.ro.toFixed(2)}</span><div class="track"><i style="width:${pct}%;background:${col}"></i><u style="left:${r.be/MAX*100}%"></u></div></div></td>
+      <td class="chev">▾</td></tr>
+      <tr class="detail" data-d="${i}"><td colspan="8"><div class="in">
+        <div class="why"><b>依据</b><p>${r.why}${r.cl?` 近 7 天 ${r.cl} 次点击。`:''}</p><span class="rule">规则：${r.rule}</span><span class="rule">保本 ROAS ${r.be.toFixed(2)}</span><span class="rule">技能版本 noon-ads @ 3f2a91c</span>${kw}</div>
+        ${r.camp?'<div class="mini"><b>广告级建议</b><p class="dim" style="font-size:12.5px;margin:0">不计入「涉及花费」，执行时在广告设置里改。</p></div>':`<div class="mini"><b>近 7 天 · 花费 vs 销售（SAR）</b>${mini(r)}<div class="legend"><span><i style="background:#7FB4FF"></i>花费</span><span><i style="background:#5EE6A0"></i>销售</span></div></div>`}
+      </div></td></tr>`;
+  }).join('') + (cur==='all'?`<tr class="foot"><td></td><td colspan="7">观察 6 个、低量 14 个：点击还不够下结论，不进建议，7 天后再看 ▸</td></tr>`:'');
+  $$('#rows tr.row').forEach(tr=>{
+    const i=+tr.dataset.i;
+    tr.querySelector('.c').onclick=e=>{e.stopPropagation(); rows[i].on^=1; render(); sum();};
+    tr.onclick=()=>{tr.classList.toggle('open'); $(`tr.detail[data-d="${i}"]`).classList.toggle('open');};
+  });
+  $$('#rows [data-kw]').forEach(b=>b.onclick=e=>{e.stopPropagation(); toast('已加进词库',`「${rows[+b.dataset.kw].k}」→ ${b.textContent}，下次复盘自动带入。`);});
+}
+function chips(){
+  const n=t=>rows.filter(r=>r.t===t).length;
+  $('#filters').insertAdjacentHTML('afterbegin',[`<button class="f-chip on" data-f="all">全部 <span class="num">${rows.length}</span></button>`,...TYPES.filter(n).map(t=>`<button class="f-chip" data-f="${t}">${tlabel[t]} <span class="num">${n(t)}</span></button>`)].join(''));
+  $$('#filters .f-chip').forEach(b=>b.onclick=()=>{$$('#filters .f-chip').forEach(x=>x.classList.toggle('on',x===b));cur=b.dataset.f;render();});
+}
+function sum(){const sel=rows.filter(r=>r.on),sp=sel.reduce((a,r)=>a+(r.camp?0:r.sp),0),m=sel.filter(MINE).length;$('#selN').textContent=sel.length;$('#mineN').textContent=$('#selN2').textContent=m;$('#bossN').textContent=$('#bossN2').textContent=sel.length-m;$('#save').textContent='SAR '+sp.toLocaleString();}
+chips(); render(); sum();
+
+// ---------- 商品库、词库 ----------
+$('#prodRows').innerHTML = prods.map(p=>`<tr><td><b>${p[0]}</b></td><td class="r num">${p[1]}</td><td class="r num">${p[2].toFixed(1)}</td><td class="r num" style="color:var(--gold-2)">${p[3].toFixed(2)}</td><td class="r num ${p[4]?'':'warn-c'}">${p[4]||'0 ⚠ 没货'}</td><td class="r num">${p[8]??'<span class="warn-c">待补</span>'}</td><td class="r num">${p[9]??'—'}</td><td class="r num">${p[10]?p[10]+' 天':'<span class="warn-c">待补</span>'}</td><td><span class="src ${p[6]}">${p[5]}</span></td><td class="dim" style="font-size:12px">${p[7]}</td></tr>`).join('');
+function kwRender(f){ $('#kwRows').innerHTML = kws.filter(k=>f==='all'||k[1]===f).map(k=>`<tr><td><b>${k[0]}</b></td><td><span class="kt ${k[1]}">${k[2]}</span></td><td class="muted">${k[3]}</td><td class="dim" style="font-size:12px">${k[4]}</td></tr>`).join(''); }
+$$('#kwF .f-chip').forEach(b=>b.onclick=()=>{$$('#kwF .f-chip').forEach(x=>x.classList.toggle('on',x===b));kwRender(b.dataset.k);});
+kwRender('all');
+
+// ---------- 页面、场景、面板切换 ----------
+function view(v){
+  B.classList.toggle('v-ws',v==='ws');
+  $('#vHome').hidden = v!=='home'; $('#vWs').hidden = v!=='ws'; $('#crumbWs').hidden = v!=='ws'; $('#bandWs').hidden = v!=='ws'; $('#bandHome').hidden = v!=='home';
+  $('#navHome').classList.toggle('on',v==='home'); $('#navWs').classList.toggle('on',v==='ws');
+  $$('.demo [data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+}
+function scene(sc){
+  ['review','calc','sched'].forEach(x=>B.classList.toggle('sc-'+x,x===sc));
+  $$('#scTabs button').forEach(t=>t.classList.toggle('on',t.dataset.sc===sc));
+  $('#tReview').hidden = sc!=='review'; $('#tCalc').hidden = sc!=='calc'; $('#tSched').hidden = sc!=='sched';
+  $('#ask').hidden = sc!=='review';
+  if(sc==='calc') panel('prod'); else if(sc==='sched') panel('hist'); else panel('sug');
+  say();
+}
+// 顶部总结气泡：跟着复盘状态变；投前算账、定时页签不显示（和其他工作台一样，只在主页签）
+function say(){
+  const el=$('#wsSay'); if(!el) return;
+  const s=['idle','run','done'].find(x=>B.classList.contains('s-'+x)), sc=['review','calc','sched'].find(x=>B.classList.contains('sc-'+x));
+  if(sc!=='review'){ el.innerHTML=''; return; }
+  el.innerHTML = s==='done'
+    ? OS.say('xiaotou','今天 15:05','11/10–11/16 花了 SAR 8,420，广告销售额 26,900，ROAS <b>3.19</b>。最要紧两件事：<b class="bad">H021 保温杯没货还在花钱</b>，先停；大词 <b>water bottle</b> ROAS 0.80，低于保本 2.40，出价降 20%。14 条建议里 <b class="ok">8 条你可直批</b>，4 条要提交拍板。')
+    : s==='run' ? OS.say('xiaotou','现在','正在复盘 云屿商店 · 沙特 11/10–11/16 的 342 行数据，大约 40 秒；算数由脚本做，我只看词和写理由。')
+    : OS.say('xiaotou','今天','每天 15:00 数据到了我自动复盘一次；也可以现在选好店铺和日期手动跑。上次 11/12 出了 15 条建议，已执行 12 条。');
+}
+let curStore = 'sa';
+$('#storePick').onclick = e => OS.storePick(e.currentTarget, {sel: curStore, onPick: s => { curStore = s.id; $('#storePick b').textContent = s.name;
+  toast('已切换到 ' + s.name, '演示：上线后复盘结果、商品库、词库都换成这个站点的。'); }});
+function panel(p){
+  ['sug','prod','kw','hist'].forEach(x=>B.classList.toggle('p-'+x,x===p));
+  $$('#pTabs .ptab').forEach(t=>t.classList.toggle('on',t.dataset.p===p));
+  $('#pSug').classList.toggle('on',p==='sug'); $('#pProd').classList.toggle('on',p==='prod'); $('#pKw').classList.toggle('on',p==='kw'); $('#pHist').classList.toggle('on',p==='hist');
+}
+$$('[data-go]').forEach(el=>el.addEventListener('click',e=>{ if(el.classList.contains('off')) return; e.stopPropagation(); view(el.dataset.go); if(el.dataset.sc) scene(el.dataset.sc); }));
+$$('.demo [data-v]').forEach(b=>b.onclick=()=>view(b.dataset.v));
+$('#demoX').onclick=()=>$('#demoBar').classList.toggle('min'); if(new URLSearchParams(location.search).has('demo')) $('#demoBar').classList.remove('min');
+$$('#scTabs button').forEach(t=>t.onclick=()=>scene(t.dataset.sc));
+$$('#pTabs .ptab').forEach(t=>t.onclick=()=>panel(t.dataset.p));
+const dw=()=>B.classList.toggle('drawer'); $('#dw2').onclick=dw; $('#dwClose').onclick=dw;
+
+// ---------- 复盘三种状态 ----------
+function state(s, rerun){
+  B.classList.remove('s-idle','s-run','s-done'); B.classList.add('s-'+s);
+  $$('.demo [data-s]').forEach(b=>b.classList.toggle('on',b.dataset.s===s));
+  $('#pForm').hidden = s!=='idle'; $('#fromTag').hidden = !rerun;
+  $('#pSum').hidden = s==='idle'; $('#pRun').hidden = s!=='run';
+  ['pDone','pLetter','qa'].forEach(id=>$('#'+id).hidden = s!=='done');
+  $('#sIdle').hidden = s!=='idle'; $('#sRun').hidden = s!=='run'; $('#sDone').hidden = s!=='done';
+  $('#ask').classList.toggle('off', s!=='done');
+  if(s==='idle'){ setFile(!!rerun); } else setFile(true);
+  if(s==='run') run(); else stopRun();
+  say();
+}
+$$('.demo [data-s]').forEach(b=>b.onclick=()=>{scene('review'); state(b.dataset.s);});
+function setFile(on){ $('#files').hidden=!on; $('#drop').hidden=on; $('#go').disabled=!on; }
+$('#drop').onclick=()=>setFile(true); $('#sample').onclick=()=>setFile(true); $('#rm').onclick=()=>setFile(false);
+$('#go').onclick=()=>state('run');
+$('#rerun').onclick=()=>state('idle',true);
+
+const nodes=$$('.node'), steps=$$('.step'), op=$('#op'), spark=$('#spark');
+const det=['342 行 · 11/10–11/16','14 条建议 · 20 个观察/低量','判断 9 个搜索词 · gpt-6','带上判断重出页面'], times=[2,3,31,2];
+let raf=null;
+function run(){
+  stopRun(); const t0=performance.now(), L=op.getTotalLength(), D=5200;
+  const tick=now=>{
+    const p=Math.min((now-t0)/D,1), pt=op.getPointAtLength(L*p);
+    spark.setAttribute('cx',pt.x); spark.setAttribute('cy',pt.y); op.style.strokeDashoffset=100-p*100;
+    $('#timer').textContent=((now-t0)/1000*7.3).toFixed(1)+'s';
+    const k=Math.min(Math.floor(p*3.999),3);
+    nodes.forEach((n,i)=>{n.classList.toggle('on',i<k||p>=1); n.classList.toggle('cur',i===k&&p<1);});
+    steps.forEach((s,i)=>{ const on=i<k||p>=1; s.classList.toggle('on',on); s.classList.toggle('cur',i===k&&p<1);
+      s.querySelector('span').textContent = on?det[i]:(i===k?'进行中…':'—'); s.querySelector('em').textContent = on?times[i]+' 秒':''; });
+    if(p<1) raf=requestAnimationFrame(tick); else setTimeout(()=>state('done'),700);
+  };
+  raf=requestAnimationFrame(tick);
+}
+function stopRun(){ if(raf) cancelAnimationFrame(raf); raf=null; }
+
+// ---------- 追问 ----------
+const answers = {
+  '哪些词亏得最多？':'按低于保本的花费排：<b>water bottle</b> 花 310、销售 248，ROAS 0.80（保本 2.40）；<b>H021 保温杯</b>没货还花了 64；<b>glass bottle</b> 花 36、0 单。这三条在右边建议里都有。',
+  'water bottle 为什么只降价不停？':'团队规则（定向词）：ROAS 低于保本、点击够了 → <b>降 20%</b>；只有 0 单才先降 10%、下次还是 0 单再停。water bottle 这 7 天有 <b>4 单</b>，所以降 20%（0.85 → 0.68），不停。一次调整不超过 20%，降完不低于实际点击价的 1.1 倍。',
+  '把 H039 保本 ROAS 改成 4 再算':'我不直接改数字。H039-2 的保本 ROAS 按商品库是 <b>2.40</b>（售价 30 ÷ 单件毛利 12.5）。要按 4 来算，点下面的按钮改参数重跑，会生成一次新的运行，结果以脚本算的为准。<div style="margin-top:8px"><button class="btn ghost sm" data-rr>改参数重跑</button></div>',
+};
+function ask(q){
+  if(!q) return; const qa=$('#qa');
+  qa.insertAdjacentHTML('beforeend',`<div class="msg me">${q}</div>`);
+  const a=answers[q] || '我只按这次复盘的结果回答：14 条建议里没货先停 1、停 1、降价 4、位置降加价 1、否定 3、加新词 1、加价 1、预算被卡 1、先修商品页 1。要换参数请用「改参数重跑」。';
+  const el=document.createElement('div'); el.className='msg ai';
+  el.innerHTML=`<div class="who"><img src="img/avatar-xiaotou.webp" alt="">小投</div><span class="typing"></span>`;
+  qa.appendChild(el); el.scrollIntoView({behavior:'smooth',block:'end'});
+  setTimeout(()=>{ el.innerHTML=`<div class="who"><img src="img/avatar-xiaotou.webp" alt="">小投</div>${a}<div class="meta"><span>gpt-6 · 4,120 / 180 tokens · ¥0.02</span><span>只读本次结果，未改数据</span></div>`;
+    const rr=el.querySelector('[data-rr]'); if(rr) rr.onclick=()=>state('idle',true);
+    el.scrollIntoView({behavior:'smooth',block:'end'}); },900);
+}
+$$('#quick .f-chip').forEach(b=>b.onclick=()=>ask(b.textContent));
+$('#qsend').onclick=()=>{ask($('#qin').value.trim()); $('#qin').value='';};
+$('#qin').onkeydown=e=>{ if(e.key==='Enter'){ ask($('#qin').value.trim()); $('#qin').value=''; } };
+
+// ---------- 其他 ----------
+function toast(t,d){ $('#toastT').textContent=t; $('#toastD').textContent=d; const el=$('#toast'); el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),3000); }
+$('#submit').onclick=()=>{const sel=rows.filter(r=>r.on),m=sel.filter(MINE).length;toast(`${m} 条已通过，${sel.length-m} 条已提交拍板`,`在你权限内的 ${m} 条交给小投通过 noon 接口执行，每条留记录、能撤回；另外 ${sel.length-m} 条拍板人会在「等你拍板」和企业微信里收到。`);};
+$('#saveCalc').onclick=()=>toast('已存进商品库','H039-2 的保本 ROAS 2.40，下次复盘自动使用。');
+
+// 初始：网址可带 #home #idle #run #done #calc #sched #prod #kw #hist
+const h=location.hash;
+view(h.includes('home')?'home':'ws');
+scene(h.includes('calc')?'calc':h.includes('sched')?'sched':'review');
+state(h.includes('idle')?'idle':h.includes('run')?'run':'done');
+if(h.includes('prod')) panel('prod'); if(h.includes('kw')) panel('kw'); if(h.includes('hist')) panel('hist');
+
+// 定时页签：和小测、小补同一个样子（流水线 + 定时卡片），数据和渲染都在 app.js
+document.getElementById('tSched').innerHTML = OS.schedTab('xiaotou', '小投排在拉数据后面第一个：15:00 数据到了就开始复盘，出的建议交负责的运营初审。');
+OS.bindSched(document.getElementById('tSched'));
+</script>
+</body>
+</html>

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" href="img/logo-icon.svg">
+<title>风之岚 OS · 等你拍板（手机）</title>
+<!-- P09 等你拍板（手机，从企业微信通知打开）。网址带 ?urgent=1 是紧急通知点进来的样子。电脑上打开时居中显示成手机宽度。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  body{background:radial-gradient(70% 40% at 50% 0%,rgba(242,181,68,.08),transparent 70%),var(--bg-0)}
+  .phone{max-width:430px;min-height:100vh;margin:0 auto;position:relative;background:var(--bg-0);display:flex;flex-direction:column}
+  @media (min-width:600px){ body{padding:24px 0;background:#0C0F14} .phone{min-height:860px;border-radius:28px;border:1px solid var(--border);overflow:hidden;box-shadow:var(--shadow-pop)} }
+  .bar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:8px;height:52px;padding:0 8px;background:rgb(var(--rgb-deep) / .92);border-bottom:1px solid var(--divider);backdrop-filter:blur(14px)}
+  .bar button{all:unset;width:44px;height:44px;display:grid;place-items:center;border-radius:12px;cursor:pointer;color:var(--text-2)}
+  .bar h1{font-size:var(--fs-16)}
+  .bar .badge{margin-left:2px}
+  .body{flex:1;padding:12px 14px 120px}
+  .m-card{padding:16px;margin-bottom:12px;border-radius:var(--r-pop);background:var(--surface-1);border:1px solid var(--divider)}
+  .m-card.urgent{border-color:rgba(255,90,90,.5);background:linear-gradient(180deg,rgba(255,90,90,.08),var(--surface-1))}
+  .m-card h2{font-size:var(--fs-16);margin:6px 0 4px}
+  .m-card .s{font-size:var(--fs-13);color:var(--text-2);line-height:var(--lh)}
+  .m-card .meta{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:var(--fs-12);color:var(--text-3)}
+  .m-card .meta img{width:20px;height:20px;object-fit:contain}
+  .m-card .acts{display:flex;gap:10px;margin-top:14px}
+  .m-card .acts .btn{flex:1;height:var(--tap-min)}
+  .m-it{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;padding:14px 0;border-bottom:1px solid var(--divider)}
+  .m-it b{font-size:var(--fs-14)} .m-it .a{font-size:var(--fs-13);color:var(--text-2);margin-top:2px} .m-it .w{font-size:var(--fs-12);color:var(--text-3);margin-top:2px}
+  .yn{display:flex;gap:6px}
+  .yn button{all:unset;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;cursor:pointer;background:var(--surface-2);color:var(--text-3)}
+  .yn button.on.y{background:color-mix(in srgb,var(--ok) 20%,transparent);color:var(--ok)}
+  .yn button.on.n{background:color-mix(in srgb,var(--error) 18%,transparent);color:var(--error)}
+  .foot{position:sticky;bottom:0;z-index:5;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:rgb(var(--rgb-deep) / .96);border-top:1px solid var(--divider);backdrop-filter:blur(14px)}
+  .foot .own{display:flex;align-items:center;gap:8px;font-size:var(--fs-13);color:var(--text-2);margin-bottom:8px}
+  .foot .own .select{height:36px;width:auto;flex:1}
+  .foot .row2{display:flex;gap:10px}
+  .foot .row2 .btn{height:48px;font-size:var(--fs-14)}
+  .foot .row2 .btn.main{flex:2}
+  .ok-view{display:flex;flex-direction:column;align-items:center;text-align:center;padding:48px 20px;gap:10px}
+  .ok-view .ring{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent);box-shadow:0 0 0 8px color-mix(in srgb,var(--ok) 6%,transparent);animation:enter var(--t-enter) var(--ease)}
+  .ok-view h2{font-size:var(--fs-20)} .ok-view p{color:var(--text-2);font-size:var(--fs-14);max-width:300px}
+  .sec{font-size:var(--fs-12);color:var(--text-3);margin:18px 2px 8px}
+</style>
+</head>
+<body>
+<div class="phone">
+  <header class="bar" id="bar"></header>
+  <div class="body" id="body"></div>
+  <div class="foot" id="foot" hidden></div>
+</div>
+<div class="toasts" aria-live="polite"></div><div class="scrim"></div>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, q, icon, ai, img, toast} = OS;
+  const URGENT = {id: 'U-1', kind: '紧急', title: '云屿商店「SP-水杯-广泛」在烧钱', why: '2 小时花了 SAR 150（日预算的 80%），0 单', from: '小巡 17:02 巡查发现', ai: 'xiaotou', amount: '张三也收到了，谁先批都算',
+    owners: ['小投 · 通过接口暂停'], items: [{k: 'SP-水杯-广泛', o: '广告组 · 云屿商店 · 沙特', t: '暂停', a: '先暂停这个广告组，回头按复盘降价', why: '最近 2 小时花费 SAR 150，0 单', on: true}]};
+  let list = (q.has('urgent') ? [URGENT] : []).concat(OS.mine().map(a => ({...a, items: a.items.map(i => ({...i, on: true}))})));
+  let cur = null;
+
+  function header(title, back){
+    $('#bar').innerHTML = (back ? `<button aria-label="返回" id="back">${icon('back', 20)}</button>` : `<button aria-label="风之岚 OS">${icon('bell', 20)}</button>`) +
+      `<h1>${title}</h1>${back ? '' : `<span class="badge num">${list.length}</span>`}`;
+    if (back) $('#back').onclick = home;
+  }
+  function home(){
+    cur = null; header('等你拍板'); $('#foot').hidden = true;
+    if (!list.length) { $('#body').innerHTML = OS.states.empty({img: 'empty-approval.webp', title: '都批完了', text: '紧急的事会再发企业微信给你。'}); return; }
+    $('#body').innerHTML = list.map((a, i) => `<article class="m-card ${a.kind === '紧急' ? 'urgent' : ''}">
+        <span class="tag" style="--k:var(${a.kind === '紧急' || a.kind === '补货申请' ? '--error' : '--wait'})">${a.kind}</span>
+        <h2>${a.title}</h2><p class="s">${a.why}</p>
+        <div class="meta"><img src="${img(ai(a.ai).img)}" alt="">${a.from}</div>
+        <div class="meta num">${a.amount}</div>${a.decider && a.decider.length > 1 ? `<div class="meta">拍板人 ${OS.deciderName(a)} · 谁先定都算</div>` : ''}
+        <div class="acts">${a.decide ? a.decide.map((d, j) => `<button class="btn${j ? '' : ' main'}" data-dec="${i}:${j}">${d[0]}</button>`).join('') : `${a.items.length > 1 ? `<button class="btn" data-see="${i}">逐条看</button>` : ''}<button class="btn main" data-all="${i}">${a.kind === '紧急' ? '批准暂停' : `全部通过 ${a.items.length} 条`}</button>`}</div>
+      </article>`).join('') + `<p class="sec">批准后交给谁：${[list.some(a => a.kind === '广告调整' || a.kind === '紧急') && '广告调整交给小投通过接口执行，可以撤回', list.some(a => a.kind === '补货申请') && '补货申请交给赵六下采购单', list.some(a => a.kind === '测款') && '测款按你的决定交给小投或张三'].filter(Boolean).join('；')}。</p>`;
+    $$('[data-see]').forEach(b => b.onclick = () => detail(+b.dataset.see));
+    $$('[data-dec]').forEach(b => b.onclick = () => { const [i, j] = b.dataset.dec.split(':').map(Number); cur = i; done(list[i].decide[j][1], 0, list[i].decide[j][0]); });
+    $$('[data-all]').forEach(b => b.onclick = () => { cur = +b.dataset.all; done(list[cur].owners[0]); });
+  }
+  function detail(i){
+    cur = i; const a = list[i]; header(a.title, true);
+    const draw = () => {
+      $('#body').innerHTML = `<p class="sec num">${a.items.length} 条 · ${a.amount}</p>` + a.items.map((it, j) => `<div class="m-it"><div><b>${it.k}</b><div class="a">${it.t} · ${it.a}</div><div class="w">${it.why}</div></div>
+        <div class="yn"><button class="y ${it.on ? 'on' : ''}" aria-label="通过" data-y="${j}">${icon('check', 20)}</button><button class="n ${it.on ? '' : 'on'}" aria-label="不通过" data-n="${j}">${icon('x', 20)}</button></div></div>`).join('');
+      $$('[data-y]').forEach(b => b.onclick = () => { a.items[+b.dataset.y].on = true; draw(); });
+      $$('[data-n]').forEach(b => b.onclick = () => { a.items[+b.dataset.n].on = false; draw(); });
+      const n = a.items.filter(x => x.on).length;
+      $('#foot').hidden = false;
+      $('#foot').innerHTML = `<label class="own">交给 <select class="select" id="own">${a.owners.map(o => `<option>${o}</option>`).join('')}</select></label>
+        <div class="row2"><button class="btn danger" id="no">退回</button><button class="btn main" id="yes" ${n ? '' : 'disabled'}>通过 ${n} 条</button></div>`;
+      $('#yes').onclick = () => done($('#own').value, n);
+      $('#no').onclick = () => { list.splice(cur, 1); toast('已退回', '提交人会收到。', 'err'); home(); };
+    };
+    draw();
+  }
+  function done(owner, n, what){
+    const a = list[cur]; list.splice(cur, 1);
+    if (navigator.vibrate) navigator.vibrate(20);
+    header('已批准', false); $('#foot').hidden = true;
+    const toAI = owner.startsWith('小投');
+    $('#body').innerHTML = `<div class="ok-view"><div class="ring">${icon('check', 34)}</div><h2>${what ? `已定：${what}` : `已批准${n ? ` ${n} 条` : ''}`}</h2>
+      <p>${toAI ? `已交给小投，正在通过 noon 接口执行。每条都记下改前改后的值，可以在电脑上撤回。` : `已交给${owner.split(' · ')[0]}跟进，小巡每小时看一次进度。`}</p>
+      <p class="t3 fs-12">「${a.title}」</p>
+      <div style="display:flex;gap:10px;margin-top:12px">${list.length ? `<button class="btn" id="next">还有 ${list.length} 件</button>` : ''}<a class="btn" href="03-组织树.html">看全局</a></div></div>`;
+    if ($('#next')) $('#next').onclick = home;
+  }
+  home();
+</script>
+</body>
+</html>

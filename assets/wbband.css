@@ -1,0 +1,104 @@
+/* ================= 页头横幅（参考小投工作台的头部）=================
+   前端对应 <PageBar img icon title sub pills right>。背景图铺满整条，左边压暗放标题，中间是关键数字，右边是切换。
+   用法：<section class="pagebar"><span class="pb-bg" style="background-image:url(img/xxx.webp);background-position:40% 46%"></span>…（图片路径写在页面里，相对页面） */
+.pagebar{position:relative;display:flex;align-items:center;gap:var(--sp-4);flex-wrap:wrap;min-height:92px;padding:var(--sp-4) var(--sp-5);margin-bottom:var(--sp-5);
+  border-radius:var(--r-pop);border:1px solid var(--divider);overflow:hidden;background:var(--surface-1)}
+.pagebar > .pb-bg{position:absolute;inset:0;z-index:0;background-size:cover;background-repeat:no-repeat;transform:scale(1.02);transition:transform var(--t-slow) var(--ease)}
+.pagebar:hover > .pb-bg{transform:scale(1.05)}
+.pagebar::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgb(var(--rgb-deep) / .95) 0%,rgb(var(--rgb-deep) / .82) 38%,rgb(var(--rgb-deep) / .5) 75%,rgb(var(--rgb-deep) / .35))}
+.pagebar > :not(.pb-bg){position:relative;z-index:1}
+.pb-who{display:flex;align-items:center;gap:var(--sp-3);min-width:min(320px,100%);flex:0 1 auto}
+.pb-who > div{min-width:0}
+.pb-who > img{width:56px;height:56px;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(0,0,0,.5))}
+.pb-ico{width:46px;height:46px;border-radius:14px;display:grid;place-items:center;font-weight:700;font-size:var(--fs-16);color:var(--k,var(--brand-hi));
+  background:color-mix(in srgb,var(--k,var(--brand)) 18%,rgb(var(--rgb-deep) / .6));border:1px solid color-mix(in srgb,var(--k,var(--brand)) 35%,transparent)}
+.pagebar h1{margin:0;font-size:var(--fs-20);font-weight:600;line-height:var(--lh-tight);letter-spacing:.06em;white-space:nowrap}
+.pb-sub{display:flex;align-items:center;gap:8px;flex-wrap:wrap;max-width:560px;margin-top:4px;font-size:var(--fs-12);color:var(--text-2)}
+.pb-pills{display:flex;gap:8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:10px;background:rgb(var(--rgb-deep) / .62);border:1px solid var(--border);
+  font-size:var(--fs-13);color:var(--text-2);white-space:nowrap;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.pill b{color:var(--text-1);font-weight:600;font-variant-numeric:tabular-nums}
+.pill.warn b{color:var(--brand-hi)}
+.pb-r{margin-left:auto;display:flex;align-items:center;gap:var(--sp-2)}
+.pagebar .seg{display:inline-flex;padding:3px;border-radius:12px;background:rgb(var(--rgb-deep) / .62);border:1px solid var(--border);backdrop-filter:blur(8px)}
+.pagebar .seg button{all:unset;cursor:pointer;border-radius:9px;color:var(--text-2);white-space:nowrap}
+.pagebar .seg button:hover{color:var(--text-1)}
+.pagebar .seg button{padding:7px 14px;font-size:var(--fs-13)}
+.pagebar .seg button.on{background:color-mix(in srgb,var(--brand) 22%,rgb(var(--rgb-tint) / .06));color:var(--text-1);box-shadow:inset 0 0 0 1px rgba(242,181,68,.45)}
+.pagebar .seg .n{margin-left:6px;font-size:var(--fs-12);color:var(--text-3)}
+@media (max-width:767px){ .pagebar{padding:var(--sp-4)} .pb-r{margin-left:0;width:100%} .pb-r .seg{width:100%;overflow-x:auto} }
+
+/* ================= AI 员工工作台的头部（小投、小测、小补统一）=================
+   一整条通栏横幅，从左铺到右（在侧栏和内容的上面），背景图铺满整条：
+   最左一格和侧栏同宽，放所在的中心；右边是 AI 员工（上面一行小字是面包屑）、关键数字、页签。侧栏不再放中心标题块。
+   用法：<body class="wb"> … 在 <main> 里写 <section class="pagebar flush wbband">…</section>，OS.shell 会把它挪到侧栏和内容上面，并补上中心那一格。 */
+:root{--wb-band-h:96px}
+.pagebar.flush{height:var(--wb-band-h);min-height:0;margin:0;padding:0 var(--sp-6);border-radius:0;border-width:0 0 1px;flex-wrap:nowrap}
+.pagebar.flush:hover > .pb-bg{transform:scale(1.02)}
+/* 右边留白 = 32px，屏幕特别宽时多留一些，让页签和内容区右边线对齐（内容最宽 --wb-max） */
+.pagebar.wbband{padding-left:0;padding-right:max(var(--sp-6), calc(100% - var(--side-w) - var(--sp-6) - var(--wb-max)))}
+.wb-center{align-self:stretch;width:var(--side-w);flex-shrink:0;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:0 20px;border-right:1px solid var(--divider);
+  background:rgb(var(--rgb-deep) / .55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:var(--text-1)}
+.wb-center .ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex-shrink:0;font-weight:700;background:color-mix(in srgb,var(--dept-commerce) 16%,transparent);color:var(--dept-commerce)}
+.wb-center b{display:block;font-size:var(--fs-14)} .wb-center span{font-size:var(--fs-12);color:var(--text-3)}
+.wb-center:hover b{color:var(--brand-hi)}
+.pb-crumb{font-size:var(--fs-12);color:var(--text-3);margin-bottom:2px} .pb-crumb a:hover{color:var(--text-1)}
+body.wb .side-dept{display:none}
+/* 2026-11-20 统一六个工作台：
+   - 左边 AI 员工这一块固定宽度，关键数字从同一个位置开始，切换工作台时横幅不晃；
+   - 头像放大、脚踩横幅下沿；
+   - 每位 AI 员工一张自己的场景图（img/wb-<id>.webp，页面里写在 .pb-bg 上），右边页签下面再压暗一点，页签更清楚。 */
+.pagebar.wbband::after{background:linear-gradient(90deg,rgb(var(--rgb-deep) / .96) 0%,rgb(var(--rgb-deep) / .86) 30%,rgb(var(--rgb-deep) / .42) 58%,rgb(var(--rgb-deep) / .5) 78%,rgb(var(--rgb-deep) / .86) 100%)}
+.wbband .pb-who{align-self:stretch;width:420px;flex:none;gap:var(--sp-3);padding-left:calc(var(--sp-6) - var(--sp-4))}  /* 减掉横幅元素之间的间距，头像左边和内容左边对齐 */
+.wbband .pb-who > img{align-self:flex-end;width:78px;height:88px;object-fit:contain;object-position:bottom;margin-bottom:-2px;filter:drop-shadow(0 10px 14px rgba(0,0,0,.55))}
+.wbband .pb-sub{flex-wrap:nowrap;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px;display:block}
+.wbband .pb-sub .dot{margin-right:6px;vertical-align:1px}
+.wbband .pb-sub .dot{color:var(--ok)}
+.pagebar a{text-decoration:none;color:inherit}
+.wbband .pb-pills{flex-wrap:nowrap}
+/* 店铺选择框（OS.storePick） */
+.spick{position:fixed;z-index:60;width:280px;padding:8px;border-radius:14px;background:rgb(var(--rgb-panel) / .98);border:1px solid var(--border-strong);box-shadow:0 20px 50px rgba(0,0,0,.5);backdrop-filter:blur(14px)}
+.spick .input{width:100%;height:34px;font-size:var(--fs-13);margin-bottom:6px;box-sizing:border-box;padding:0 10px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-1);font-family:inherit;outline:none}
+.spick .ls{max-height:300px;overflow:auto;scrollbar-width:thin}
+.spick .g{padding:8px 8px 4px;font-size:11px;letter-spacing:.06em;color:var(--text-3)}
+.spick button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border-radius:8px;font-size:var(--fs-13);color:var(--text-2)}
+.spick button:hover,.spick button:focus-visible{background:rgb(var(--rgb-tint) / .06);color:var(--text-1)} .spick button.on{color:var(--text-1)}
+.spick button i{width:7px;height:7px;border-radius:50%;background:var(--k);flex:none} .spick button span{flex:1}
+.spick button small{font-size:11px;color:var(--text-3)} .spick button svg{color:var(--brand-hi)}
+.spick .none{margin:10px 8px;font-size:var(--fs-12);color:var(--text-3)}
+.wbband .pill.pick{cursor:pointer} .wbband .pill.pick:hover{border-color:var(--border-strong,var(--line-2))}
+@media (max-width:1439px){ .wbband .pb-who{width:360px} .wbband .pb-sub{max-width:260px} }
+@media (max-width:1279px){ .pagebar.flush .pb-pills{display:none} }
+@media (max-width:1023px){ .wb-center{display:none} .pagebar.flush{height:auto;min-height:var(--wb-band-h);flex-wrap:wrap;padding:12px var(--sp-4)} }
+
+/* ================= AI 员工的总结条（六个工作台第一屏统一）=================
+   前端对应 <AiSay ai time actions>。头像 + 「小 X 的总结 · 时间」+ 一两句结论（关键词用 <b> 高亮），右边可放一个数字和按钮。
+   用法：OS.say('xiaoce', '今天 15:07', '一两句话', '<a class="btn">…</a>') */
+.wsay{position:relative;display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-4) var(--sp-5);margin:6px 0 var(--sp-4);border-radius:var(--r-pop);
+  background:linear-gradient(100deg,color-mix(in srgb,var(--brand) 11%,var(--surface-1)) 0%,var(--surface-1) 55%);border:1px solid color-mix(in srgb,var(--brand) 26%,transparent)}
+/* 气泡尖角：对准横幅里的头像（头像中心离内容左边约 39px） */
+.wsay::before{content:"";position:absolute;left:31px;top:-8px;width:14px;height:14px;transform:rotate(45deg);border-radius:3px 0 0 0;
+  background:color-mix(in srgb,var(--brand) 11%,var(--surface-1));border:1px solid color-mix(in srgb,var(--brand) 26%,transparent);border-right:0;border-bottom:0}
+.wsay .from{display:flex;align-items:center;gap:6px;flex-wrap:wrap;min-width:0} .wsay .from i{width:6px;height:6px;border-radius:50%;background:var(--brand);box-shadow:0 0 8px var(--brand)}
+.wsay .tx{position:relative;flex:1;min-width:0;max-width:62em}  /* 一行最多约 60 个字，宽屏也好读 */
+.wsay .from{font-size:var(--fs-12);color:var(--text-3);margin-bottom:3px}
+.wsay p{margin:0;font-size:var(--fs-14);line-height:var(--lh-loose);color:var(--text-2)}
+.wsay p b{color:var(--text-1);font-weight:600} .wsay p b.hi{color:var(--brand-hi)} .wsay p b.bad{color:var(--error)} .wsay p b.ok{color:var(--ok)}
+.wsay .side-r{position:relative;display:flex;align-items:center;gap:var(--sp-3);flex:none;margin-left:auto;margin-right:28px}
+/* 右上角收起 / 展开 */
+.wsay{padding-right:var(--sp-5)}
+.ws-fold{all:unset;position:absolute;top:10px;right:10px;width:26px;height:26px;display:grid;place-items:center;border-radius:8px;color:var(--text-3);cursor:pointer;transition:background var(--t-hover),color var(--t-hover),transform var(--t-hover)}
+.ws-fold svg{transform:rotate(180deg);transition:transform var(--t-hover)}
+.ws-fold:hover{background:rgb(var(--rgb-tint) / .08);color:var(--text-1)}
+.ws-fold:focus-visible{outline:2px solid var(--brand-hi);outline-offset:2px}
+/* 收起后：一行。名字和时间 + 前半句（省略号）+ 按钮 */
+.wsay.min{padding-top:10px;padding-bottom:10px;cursor:pointer}
+.wsay.min .tx{display:flex;align-items:center;gap:12px;max-width:none}
+.wsay.min .from{margin:0;flex:none}
+.wsay.min p{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:var(--fs-13)}
+.wsay.min .side-r .big{display:none}
+.wsay.min .side-r .btn{height:30px;padding:0 12px;font-size:var(--fs-12)}
+.wsay.min .ws-fold{top:50%;margin-top:-13px}
+.wsay.min .ws-fold svg{transform:none}
+.wsay .big{text-align:right} .wsay .big small{display:block;font-size:var(--fs-12);color:var(--text-3)} .wsay .big b{font-size:var(--fs-24);font-weight:600;font-variant-numeric:tabular-nums}
+@media (max-width:1023px){ .wsay{flex-wrap:wrap} .wsay .side-r{width:100%;justify-content:flex-end} }

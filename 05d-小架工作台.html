@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 小架工作台</title>
+<!-- P05d 小架工作台（上架，技能 noon-listing）。场景：写 listing（英文 + 阿语）、商品图（7 张）、A+ 内容、视频、上架前检查、定时。
+     小架只出草稿：不登录后台、不上传。上架要拍板，批准后由平台通过店铺接口上架。演示商品是 H039-2 水杯（白色星期五前换图）。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<link rel="stylesheet" href="assets/schedule.css">
+<style>
+  .lst{display:grid;grid-template-columns:300px minmax(0,1fr);gap:var(--sp-4);align-items:start}
+  .prod{position:sticky;top:calc(var(--topbar-h) + 16px)}
+  .prod .pic{aspect-ratio:1;border-radius:var(--r-card);overflow:hidden;background:#fff}
+  .prod .pic img{width:100%;height:100%;object-fit:cover}
+  .prod dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 12px;margin:var(--sp-4) 0 0;font-size:var(--fs-13)}
+  .prod dt{color:var(--text-3)} .prod dd{margin:0}
+  .lang{display:flex;gap:6px;margin-bottom:var(--sp-3)}
+  .fieldc{padding:var(--sp-4);border-radius:var(--r-card);background:var(--surface-1);border:1px solid var(--divider);margin-bottom:var(--sp-3)}
+  .fieldc .h{display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:var(--fs-13);color:var(--text-2)}
+  .fieldc .h b{color:var(--text-1);font-weight:600;font-size:var(--fs-14)}
+  .fieldc .h .cnt{margin-left:auto;font-size:var(--fs-12);color:var(--text-3)}
+  .fieldc .txt{font-size:var(--fs-14);line-height:var(--lh-loose);color:var(--text-1)}
+  .fieldc .txt[dir=rtl]{font-family:"Noto Naskh Arabic","Geeza Pro",var(--font-sans);font-size:var(--fs-16)}
+  .fieldc ol{margin:0;padding-left:20px} .fieldc li{margin:6px 0;line-height:var(--lh-loose)}
+  .fieldc ol[dir=rtl]{padding-left:0;padding-right:20px}
+  .fieldc .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .chip{all:unset;cursor:pointer;display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:8px;background:var(--surface-2);color:var(--text-2);font-size:var(--fs-12)}
+  .chip:hover{background:var(--surface-3);color:var(--text-1)}
+  .diff{background:color-mix(in srgb,var(--ok) 18%,transparent);border-radius:4px;padding:0 2px}
+  .imgs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-3)}
+  .slot{border-radius:var(--r-card);overflow:hidden;background:var(--surface-1);border:1px solid var(--divider)}
+  .slot.main{grid-column:span 2;grid-row:span 2}
+  .slot .p{position:relative;aspect-ratio:1;background:#fff}
+  .slot .p img{width:100%;height:100%;object-fit:cover;display:block}
+  .slot .n{position:absolute;left:8px;top:8px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.6);color:#fff;font-size:12px;font-weight:600}
+  .slot .p.todo{display:grid;place-items:center;background:var(--surface-2);color:var(--text-3);font-size:var(--fs-12)}
+  .slot .b{padding:10px 12px;display:flex;align-items:center;gap:8px;font-size:var(--fs-12);color:var(--text-3)}
+  .slot .b b{display:block;color:var(--text-1);font-size:var(--fs-13);font-weight:500}
+  .slot .b .st{margin-left:auto}
+  .slot .over{position:absolute;inset:auto 8px 8px auto;display:flex;gap:6px;opacity:0;transition:opacity var(--t-hover)}
+  .slot:hover .over{opacity:1}
+  .aplus{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:6px;border-radius:var(--r-pop);overflow:hidden;border:1px solid var(--divider);background:#fff}
+  .mod{position:relative;background:#fff;color:#1F2329}
+  .mod.hero{aspect-ratio:16/8;overflow:hidden}
+  .mod.hero img{width:100%;height:100%;object-fit:cover}
+  .mod.hero .cap{position:absolute;left:6%;top:50%;transform:translateY(-50%);max-width:44%;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.45)}
+  .mod.hero .cap b{display:block;font-size:30px;line-height:1.15;font-weight:700} .mod.hero .cap span{display:block;margin-top:8px;font-size:15px;opacity:.92}
+  .mod.three{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:0}
+  .mod.three figure{margin:0;background:#F6F4EF}
+  .mod.three img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+  .mod.three figcaption{padding:12px 14px 16px;font-size:13px;color:#3d4350;line-height:1.5} .mod.three figcaption b{display:block;font-size:15px;color:#1F2329;margin-bottom:4px}
+  .mod.split{display:grid;grid-template-columns:1fr 1fr;align-items:center;background:#F6F4EF}
+  .mod.split img{width:100%;aspect-ratio:1;object-fit:cover;display:block}
+  .mod.split .t{padding:0 8%} .mod.split .t b{display:block;font-size:22px;line-height:1.25;margin-bottom:10px} .mod.split .t span{font-size:14px;color:#3d4350;line-height:1.6}
+  .mod-tag{position:absolute;right:10px;top:10px;padding:2px 8px;border-radius:6px;background:rgba(0,0,0,.55);color:#fff;font-size:11px}
+  .story{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:var(--sp-3)}
+  .shot{border-radius:var(--r-card);overflow:hidden;background:var(--surface-1);border:1px solid var(--divider)}
+  .shot .p{position:relative;aspect-ratio:9/16;background:#000}
+  .shot .p img{width:100%;height:100%;object-fit:cover}
+  .shot .p .t{position:absolute;left:8px;top:8px;padding:1px 7px;border-radius:6px;background:rgba(0,0,0,.6);color:#fff;font-size:11px}
+  .shot .b{padding:10px 12px;font-size:var(--fs-12);color:var(--text-2);line-height:1.5} .shot .b b{display:block;color:var(--text-1);font-size:var(--fs-13)}
+  .checks{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:var(--sp-4);align-items:start}
+  .ck{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:12px;align-items:start;padding:14px 0;border-top:1px solid var(--divider)}
+  .ck:first-child{border-top:0}
+  .ck .i{width:24px;height:24px;border-radius:50%;display:grid;place-items:center}
+  .ck .i.ok{background:color-mix(in srgb,var(--ok) 20%,transparent);color:var(--ok)} .ck .i.warn{background:color-mix(in srgb,var(--wait) 22%,transparent);color:var(--wait)}
+  .ck b{font-size:var(--fs-14);font-weight:600} .ck p{font-size:var(--fs-12);color:var(--text-3);margin-top:3px;line-height:1.5}
+  .submit{position:sticky;top:calc(var(--topbar-h) + 16px);display:flex;flex-direction:column;gap:var(--sp-4)}
+  .chg{display:flex;flex-direction:column;gap:10px;margin-top:var(--sp-2);font-size:var(--fs-13);color:var(--text-2)}
+  .chg li{display:flex;gap:8px;align-items:flex-start;list-style:none} .chg{padding:0}
+  .chg li::before{content:"";flex:none;width:6px;height:6px;margin-top:8px;border-radius:50%;background:var(--ok)}
+  .hist{font-size:var(--fs-12);color:var(--text-3);margin-top:var(--sp-2)} .hist div{display:flex;justify-content:space-between;padding:7px 0;border-top:1px solid var(--divider)}
+  .tline{display:flex;height:34px;margin:var(--sp-4) 0 var(--sp-2);border-radius:10px;overflow:hidden;border:1px solid var(--divider)}
+  .tline span{display:flex;align-items:center;padding:0 10px;font-size:var(--fs-12);color:var(--text-1);white-space:nowrap;overflow:hidden;border-left:1px solid rgba(0,0,0,.25)}
+  .tline span:first-child{border-left:0}
+  .tticks{display:flex;justify-content:space-between;font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+  .script td{vertical-align:top;font-size:var(--fs-13);line-height:1.6} .script td[dir=rtl]{font-family:"Noto Naskh Arabic","Geeza Pro",var(--font-sans);font-size:var(--fs-14)}
+  .submit .score{font-size:44px;font-weight:700;color:var(--ok);line-height:1}
+  @media (max-width:1279px){ .imgs{grid-template-columns:repeat(3,minmax(0,1fr))} .story{grid-template-columns:repeat(3,minmax(0,1fr))} .checks{grid-template-columns:minmax(0,1fr)} .submit{position:static} }
+  @media (max-width:1023px){ .lst{grid-template-columns:minmax(0,1fr)} .prod{position:static} .imgs{grid-template-columns:1fr 1fr} .slot.main{grid-column:span 2;grid-row:auto} }
+</style>
+</head>
+<body class="wb" data-as="m-zs">
+<main class="main" id="page">
+  <section class="pagebar flush wbband"><span class="pb-bg" style="background-image:url(img/wb-xiaojia.webp);background-position:62% 50%"></span>
+    <div class="pb-who"><img src="img/avatar-xiaojia.webp" alt=""><div><div class="pb-crumb"><a href="05-小投工作台.html#home">工作台</a> / 小架</div><h1>小架 · 上架</h1><div class="pb-sub"><span class="dot live"></span>在岗 · 负责人 张三 · 只出草稿，上架要拍板</div></div></div>
+    <div class="pb-pills"><span class="pill">本周 <b>14</b> 次</span><span class="pill">费用 <b>¥6.80</b></span><span class="pill">草稿 <b>3</b> 条</span></div>
+    <div class="pb-r"><div class="seg" id="sc" role="tablist"></div></div>
+  </section>
+  <div id="body"></div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  OS.shell({active: '', side: 'xiaojia'});
+  const {D, $, $$, icon, states, toast, drawer, confirm} = OS;
+  const C = f => `img/create/${f}.webp`;
+  const SC = [['listing', '写 listing'], ['images', '商品图'], ['aplus', 'A+ 内容'], ['video', '视频'], ['check', '上架前检查'], ['sched', '定时']];
+  let scene = SC.some(s => '#' + s[0] === location.hash) ? location.hash.slice(1) : 'listing', state = '正常', lang = 'en';
+  function tabs(){
+    $('#sc').innerHTML = SC.map(([k, l]) => `<button role="tab" class="${k === scene ? 'on' : ''}" data-s="${k}">${l}</button>`).join('');
+    $$('#sc button').forEach(b => b.onclick = () => { scene = b.dataset.s; history.replaceState(null, '', '#' + scene); render(); });
+  }
+  const PROD = `<aside class="card pad prod"><div class="pic"><img src="${C('product')}" alt="H039-2 水杯 500ml"></div>
+    <dl><dt>商品</dt><dd><b>H039-2 水杯 500ml</b></dd><dt>店铺</dt><dd>云屿商店 · 沙特 · 在售</dd><dt>为什么改</dt><dd>链接管理诊断 86 分：场景图少于 2 张；白色星期五 11/27 前换图</dd>
+      <dt>卖点来源</dt><dd>供货页、商品库、小测复盘（退货 2.4%）</dd><dt>售价</dt><dd class="num">SAR 27 · 保本 ROAS 2.40（小选）</dd></dl>
+    <a class="btn block" style="margin-top:var(--sp-4)" href="18-作图.html#listings">${icon('right', 14)}在链接管理里看</a></aside>`;
+  const T = {
+    en: {title: 'Insulated Water Bottle 500ml, Stainless Steel Double Wall Vacuum, <span class="diff">Keeps Cold 24h & Hot 12h</span>, Leak-Proof Lid with Carry Loop, Sage Green', n: 148,
+      bullets: ['<b>Cold for 24 hours, hot for 12</b> — double-wall vacuum keeps water icy through a full Riyadh summer day.', '<b>Leak-proof screw lid</b> — toss it in a gym bag or car door without a drop.', '<b>One-hand carry loop</b> — the brushed steel loop clips to bags and fits two fingers.', '<b>Fits car cup holders</b> — slim 7 cm base, 500 ml for a day out.', '<span class="diff"><b>Gift-ready for White Friday</b> — matte sage finish, BPA-free, easy to clean.</span>'],
+      desc: 'Stay refreshed from the school run to the desert trail. This 500 ml stainless steel bottle keeps drinks cold for 24 hours and hot for 12, with a leak-proof lid and a carry loop that clips anywhere…'},
+    ar: {title: 'زجاجة مياه معزولة 500 مل من الفولاذ المقاوم للصدأ، <span class="diff">تحافظ على البرودة 24 ساعة والسخونة 12 ساعة</span>، غطاء مانع للتسرب مع حلقة حمل، أخضر', n: 132,
+      bullets: ['<b>برودة 24 ساعة وسخونة 12 ساعة</b> — جدار مزدوج معزول يبقي الماء باردًا طوال يوم صيفي.', '<b>غطاء محكم ضد التسرب</b> — ضعها في الحقيبة أو باب السيارة بلا قطرة.', '<b>حلقة حمل بيد واحدة</b> — تعلق بسهولة على الحقائب.', '<b>تناسب حامل الأكواب في السيارة</b> — قاعدة نحيفة 7 سم.', '<span class="diff"><b>هدية مثالية للجمعة البيضاء</b> — لون أخضر مطفي، خالية من BPA.</span>'],
+      desc: 'ابقَ منتعشًا من مشوار المدرسة إلى رحلة الصحراء. زجاجة 500 مل تحافظ على برودة المشروبات 24 ساعة…'},
+  };
+  function listing(){
+    const t = T[lang], rtl = lang === 'ar' ? ' dir="rtl"' : '';
+    $('#body').innerHTML = OS.say('xiaojia', '16:10', 'H039-2 水杯：标题加上「<b>保冷 24h、保热 12h</b>」，第 5 条卖点换成<b>白色星期五送礼</b>，阿语一起改了。7 张图做好 6 张，送礼图在做；上架前检查还差 <b class="hi">1 项</b>。', '<button class="btn main" id="toCheck">去上架前检查</button>') + `<div class="lst">${PROD}<div>
+      <div class="row" style="margin-bottom:var(--sp-3)"><div class="seg lang" id="lang"><button class="${lang === 'en' ? 'on' : ''}" data-l="en">英文</button><button class="${lang === 'ar' ? 'on' : ''}" data-l="ar">阿语</button></div><span class="sp"></span>
+        <span class="t3 fs-12">绿色底是这次改的 · 小架 16:10 写</span><button class="btn sm" id="copy">${icon('file', 14)}复制全部</button></div>
+      <div class="fieldc"><div class="h"><b>标题</b><span class="cnt num">${t.n} / 200 字符</span></div><div class="txt"${rtl}>${t.title}</div>
+        <div class="acts"><button class="chip">再短一点</button><button class="chip">把容量放前面</button><button class="chip">换个说法</button></div></div>
+      <div class="fieldc"><div class="h"><b>五点卖点</b><span class="cnt">每条 ≤ 250 字符</span></div><ol${rtl}>${t.bullets.map(b => `<li>${b}</li>`).join('')}</ol>
+        <div class="acts"><button class="chip">卖点 3 换一下</button><button class="chip">更像本地人说话</button></div></div>
+      <div class="fieldc"><div class="h"><b>描述</b><span class="cnt">完整版 820 字符</span></div><div class="txt"${rtl}>${t.desc}</div></div>
+      <p class="hint">小架只出草稿，不登录后台、不上传。改好后去「上架前检查」，通过的提交拍板，批准后平台通过店铺接口更新。</p></div></div>`;
+    $$('#lang button').forEach(b => b.onclick = () => { lang = b.dataset.l; listing(); });
+    $$('.chip').forEach(c => c.onclick = () => toast('小架在改', `「${c.textContent}」，改好会标绿。`));
+    $('#copy').onclick = () => toast('已复制', '英文和阿语都复制好了，按后台的格子粘。');
+    $('#toCheck').onclick = () => { scene = 'check'; history.replaceState(null, '', '#check'); render(); };
+  }
+  const SLOTS = [['product', '主图', '纯白底，商品占 85%', 1], ['scene', '场景', '中东家居，冰水和薄荷', 1], ['studio', '质感', '大理石台，暖光', 1], ['detail', '细节', '瓶盖和水珠特写', 1], ['hand', '尺寸 · 手持', '一手拿，看出大小', 1], ['flatlay', '生活', '俯拍平铺', 1], [null, '白色星期五', '送礼图，还在做', 0]];
+  function images(){
+    $('#body').innerHTML = `<div class="row" style="margin-bottom:var(--sp-3)"><h3>7 张商品图</h3><span class="t3 fs-12" style="margin-left:10px">按 noon 的要求：第 1 张纯白底，至少 6 张</span><span class="sp"></span><a class="btn sm" href="18-作图.html">${icon('arrow', 14)}去作图</a><button class="btn sm main" id="all">${icon('check', 14)}选好了，去检查</button></div>
+      <div class="imgs">${SLOTS.map(([p, n, d, ok], i) => `<div class="slot${i === 0 ? ' main' : ''}"><div class="p${p ? '' : ' todo'}">${p ? `<img src="${C(p)}" alt="">` : `<span>${icon('refresh', 18)}<br>小架在做</span>`}<span class="n">${i + 1}</span>
+          ${p ? `<span class="over"><a class="btn sm" href="18-作图.html#t/smart">改图</a><button class="btn sm" data-re="${i}">重做</button></span>` : ''}</div>
+        <div class="b"><div><b>${n}</b>${d}</div>${ok ? '<span class="st ok">已做</span>' : '<span class="st run">做图中</span>'}</div></div>`).join('')}</div>
+      <p class="hint" style="margin-top:12px">图上的字（英文和阿语）在作图里改；图片先存进商品库，上架时一起提交。</p>`;
+    $$('[data-re]').forEach(b => b.onclick = () => toast('小架在重做', `第 ${+b.dataset.re + 1} 张，大约 30 秒。`));
+    $('#all').onclick = () => { scene = 'check'; history.replaceState(null, '', '#check'); render(); };
+  }
+  function aplus(){
+    $('#body').innerHTML = `<div class="row" style="margin-bottom:var(--sp-3)"><h3>A+ 内容</h3><span class="t3 fs-12" style="margin-left:10px">5 个模块 · 字是网页上的，导出时再排进图里</span><span class="sp"></span><button class="btn sm">换一个模块</button><button class="btn sm">导出长图</button></div>
+      <div class="aplus">
+        <div class="mod hero"><img src="${C('scene')}" alt=""><div class="cap"><b>Cold all day.<br>Even in Riyadh.</b><span>24h cold · 12h hot · 500 ml</span></div><span class="mod-tag">模块 1 · 首屏</span></div>
+        <div class="mod three"><span class="mod-tag">模块 2 · 三个卖点</span>${[['detail', 'Double-wall vacuum', 'Ice stays ice for 24 hours.'], ['hand', 'One-hand carry', 'Brushed loop fits two fingers.'], ['flatlay', 'Leak-proof lid', 'Bag-safe, car-safe.']].map(([p, b, t]) => `<figure><img src="${C(p)}" alt=""><figcaption><b>${b}</b>${t}</figcaption></figure>`).join('')}</div>
+        <div class="mod split"><img src="${C('studio')}" alt=""><div class="t"><b>Matte finish,<br>made to gift</b><span>Sage green, BPA-free, easy to clean. A thoughtful pick for White Friday.</span></div><span class="mod-tag">模块 3 · 质感</span></div>
+        <div class="mod split"><div class="t"><b>Pick your colour</b><span>Sage green and terracotta, same 500 ml.</span></div><img src="${C('color')}" alt=""><span class="mod-tag">模块 4 · 颜色</span></div>
+        <div class="mod hero" style="aspect-ratio:16/7"><img src="${C('wf')}" alt=""><div class="cap"><b>White Friday ready</b><span>Gift it from 11/27</span></div><span class="mod-tag">模块 5 · 活动</span></div>
+      </div>`;
+  }
+  function video(){
+    const SH = [['product', '0–2 秒', '商品亮相', '白底转一圈'], ['scene', '2–5 秒', '倒冰水', '冰块和薄荷'], ['hand', '5–8 秒', '一手拿出门', '庭院阳光'], ['video', '8–12 秒', '沙漠徒步', '日落逆光'], ['wf', '12–15 秒', '送礼', '白色星期五礼盒']];
+    $('#body').innerHTML = `<div class="row" style="margin-bottom:var(--sp-3)"><h3>15 秒商品视频 · 分镜</h3><span class="t3 fs-12" style="margin-left:10px">9:16 竖屏 · 配乐和字幕在视频页加</span><span class="sp"></span><a class="btn sm main" href="19-视频.html#t/pvideo">${icon('play', 14)}去视频页生成</a></div>
+      <div class="story">${SH.map(([p, t, b, d]) => `<div class="shot"><div class="p"><img src="${C(p)}" alt=""><span class="t">${t}</span></div><div class="b"><b>${b}</b>${d}</div></div>`).join('')}</div>
+      <div class="tline">${SH.map(([, t, b], i) => { const [a, z] = t.replace(' 秒', '').split('–').map(Number); return `<span style="flex:${z - a};background:color-mix(in srgb,var(--brand) ${28 - i * 4}%,var(--surface-2))">${b}</span>`; }).join('')}</div>
+      <div class="tticks"><span>0 秒</span><span>5</span><span>10</span><span>15 秒</span></div>
+      <section class="card" style="margin-top:var(--sp-5)"><div class="card-h"><h3>旁白和字幕</h3><span class="t3 fs-12">小架写的草稿 · 配乐：轻快弦乐，15 秒</span><button class="btn sm" id="vcopy" style="margin-left:auto">${icon('file', 14)}复制脚本</button></div>
+        <div class="card-b tbl-wrap"><table class="tbl script"><thead><tr><th style="width:90px">时间</th><th style="width:140px">画面</th><th>旁白（英文）</th><th>字幕（阿语）</th></tr></thead><tbody>
+        ${[['Meet your new everyday bottle.', 'زجاجتك اليومية الجديدة'], ['Ice stays ice — for 24 hours.', 'الثلج يبقى ثلجًا لمدة 24 ساعة'], ['One hand, one loop, out the door.', 'بيد واحدة… وانطلق'], ['Cold water, even in the desert.', 'ماء بارد حتى في الصحراء'], ['Gift it this White Friday.', 'هدية الجمعة البيضاء']]
+          .map(([en, ar], i) => `<tr><td class="num t3">${SH[i][1]}</td><td><b>${SH[i][2]}</b></td><td>${en}</td><td dir="rtl">${ar}</td></tr>`).join('')}</tbody></table></div></section>`;
+    $('#vcopy').onclick = () => toast('已复制', '分镜、旁白和字幕都复制好了，去视频页粘到「商品视频」里。');
+  }
+  const CK = [['ok', '标题长度', '148 / 200 字符，关键词「insulated water bottle」在前 50 个字符'], ['ok', '阿语标题和卖点', '已写，check-arabic 没发现机翻腔'], ['ok', '主图纯白底', '背景 RGB 255，商品占 85%'], ['ok', '图片张数', '6 张已做好（至少 6 张），第 7 张送礼图在做'], ['ok', '违禁词和受限类目', 'check-restricted：没有'], ['warn', '变体的阿语值', '「容量」变体的阿拉伯文值还没填：500 مل'], ['ok', '售价和利润', 'SAR 27，小选算的利润率 22%，高于保本'], ['ok', '库存', '可售 120 件，不会刚上新就断货']];
+  function check(){
+    const ok = CK.filter(c => c[0] === 'ok').length;
+    $('#body').innerHTML = `<div class="checks"><section class="card pad"><div class="row" style="margin-bottom:var(--sp-2)"><h3>上架前检查</h3><span class="t3 fs-12" style="margin-left:10px">按 noon 的要求，脚本 check-listing、check-arabic、check-restricted</span></div>
+        ${CK.map(([k, t, d]) => `<div class="ck"><span class="i ${k}">${icon(k === 'ok' ? 'check' : 'x', 13)}</span><div><b>${t}</b><p>${d}</p></div>${k === 'warn' ? '<button class="btn sm" data-fix>补上</button>' : ''}</div>`).join('')}</section>
+      <aside class="submit"><section class="card pad"><div class="score num">${ok}/${CK.length}</div><p class="t2" style="margin:8px 0 var(--sp-4)">还差 1 项。补上后提交拍板，批准后平台通过 noon 接口更新这条 listing，改前的版本留底，能撤回。</p>
+        <button class="btn main block" id="sub">${icon('check', 14)}提交拍板</button><p class="hint" style="margin-top:8px">拍板人：决策层（上新、改在售 listing 要拍板）</p></section>
+        <section class="card pad"><h3>这次改了什么</h3><ul class="chg"><li>标题加上「Keeps Cold 24h &amp; Hot 12h」</li><li>第 5 条卖点换成白色星期五送礼</li><li>新做第 2、3、6 张图，第 7 张在做</li><li>A+ 5 个模块，首屏换成利雅得夏天</li><li>阿语标题、卖点一起改</li></ul></section>
+        <section class="card pad"><h3>检查记录</h3><div class="hist"><div><span>今天 16:20</span><span>${ok}/${CK.length} · 差变体阿语值</span></div><div><span>今天 16:12</span><span>6/8 · 主图不是纯白底</span></div><div><span>11/14</span><span>在售版本 7/8 · 场景图少</span></div></div></section></aside></div>`;
+    $$('[data-fix]').forEach(b => b.onclick = () => { b.closest('.ck').querySelector('.i').className = 'i ok'; b.closest('.ck').querySelector('.i').innerHTML = icon('check', 13); b.remove(); toast('已补上', '「容量」变体的阿拉伯文：500 مل'); });
+    $('#sub').onclick = async () => { if (await confirm({title: '提交拍板？', msg: 'H039-2 水杯的新文案和 7 张图交给决策层拍板。批准后平台通过 noon 接口更新，能撤回。', ok: '提交'})) toast('已提交拍板', '决策层会在「等你拍板」和企业微信里收到。'); };
+  }
+  function sched(){
+    $('#body').innerHTML = OS.schedTab('xiaojia', '小架每天 15:12 查一遍在售 listing：主图白底、图片张数、阿语标题、违禁词，有问题的列进链接管理。');
+    OS.bindSched($('#body'));
+  }
+  function render(s = state){
+    state = s; tabs();
+    const B = $('#body');
+    if (s === '加载中') return B.innerHTML = `<div class="lst"><div class="skel" style="height:420px"></div><div>${states.loading(4)}</div></div>`;
+    if (s === '出错') return B.innerHTML = states.error({what: '这条 listing 没读到', why: 'noon 接口 17:00 那次超时', next: '<button class="btn sm main">重读</button>'});
+    if (s === '没有数据') return B.innerHTML = `<div class="card">${states.empty({img: 'empty-xiaojia.webp', title: '还没有要上架的商品', text: '在新任务里说「小架，帮我上新这个商品」，发供货页或亚马逊同款链接；或者在链接管理里点「交给小架优化」。', act: '<a class="btn main" href="17-新任务.html?q=小架，帮我上新这个商品">去新任务</a><a class="btn" href="18-作图.html#listings">链接管理</a>'})}</div>`;
+    ({listing, images, aplus, video, check, sched})[scene]();
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>

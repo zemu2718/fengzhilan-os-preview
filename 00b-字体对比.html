@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 字体对比</title>
+<!-- 字体对比（2026-11-22，还没定）：系统字体、HarmonyOS Sans、MiSans 三栏同样的内容放一起看；
+     「整站用它试看」把所有原型页换成这个字体（记在本机，assets/theme.js 读）。
+     HarmonyOS Sans 的文件不进 Git，先运行 tools/fetch-fonts.sh；MiSans 走 jsdelivr，要联网。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/fonts-harmonyos.css">
+<link rel="stylesheet" href="assets/fonts-misans.css">
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  .now{display:flex;align-items:center;gap:var(--sp-3);flex-wrap:wrap;font-size:var(--fs-13);color:var(--text-2)}
+  .cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp-4);margin-top:var(--sp-5)}
+  .fc{font-family:var(--f);display:flex;flex-direction:column;border-radius:var(--r-pop);background:var(--surface-1);border:1px solid var(--divider);box-shadow:var(--shadow-card);overflow:hidden}
+  .fc.on{border-color:color-mix(in srgb,var(--brand) 55%,transparent);box-shadow:var(--shadow-card),var(--glow-brand)}
+  .fc-h{display:flex;align-items:flex-start;gap:var(--sp-3);padding:var(--sp-4) var(--sp-5);border-bottom:1px solid var(--divider)}
+  .fc-h h2{font-size:var(--fs-16);font-weight:600} .fc-h p{font-size:var(--fs-12);color:var(--text-3);margin-top:2px}
+  .fc-h .btn{margin-left:auto;flex:none}
+  .fc-b{padding:var(--sp-4) var(--sp-5) var(--sp-5);display:flex;flex-direction:column;gap:var(--sp-4)}
+  .lab{font-family:var(--font-sans);font-size:var(--fs-11);letter-spacing:.06em;color:var(--text-3);margin-bottom:6px}
+  .h24{font-size:var(--fs-24);font-weight:600;line-height:var(--lh-tight)}
+  .kpi-s{display:flex;gap:var(--sp-5);align-items:flex-end}
+  .kpi-s .cur{font-size:var(--fs-13);color:var(--text-2);margin-right:4px}
+  .kpi-s b{font-size:var(--fs-num-40);font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+  .kpi-s small{display:block;font-size:var(--fs-12);color:var(--text-3);margin-top:6px}
+  .body{font-size:var(--fs-14);line-height:var(--lh-loose);color:var(--text-1)} .body b{font-weight:600} .body .hi{color:var(--brand-hi);font-weight:600} .body .bad{color:var(--error);font-weight:600}
+  .rows{font-size:var(--fs-13);border-top:1px solid var(--divider)}
+  .rows div{display:grid;grid-template-columns:minmax(0,1.5fr) 56px 92px 56px;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--divider)}
+  .rows .num{text-align:right} .rows .t3{font-size:var(--fs-12)}
+  .wts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;font-size:var(--fs-16)}
+  .wts span{padding:8px;border-radius:var(--r-btn);background:var(--surface-2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wts small{display:block;font-family:var(--font-sans);font-size:var(--fs-11);color:var(--text-3);font-weight:400}
+  .sm12{font-size:var(--fs-12);color:var(--text-2);line-height:var(--lh)} .sm11{font-size:var(--fs-11);color:var(--text-3)}
+  .digits{font-size:var(--fs-20);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+  .ar{direction:rtl;text-align:right;font-size:var(--fs-16);line-height:1.8}
+  .facts{margin-top:auto;padding:var(--sp-4) var(--sp-5);background:var(--surface-2);font-family:var(--font-sans);font-size:var(--fs-12);color:var(--text-2);line-height:var(--lh-loose)}
+  .facts b{color:var(--text-1);font-weight:600} .facts .w{color:var(--wait)} .facts .e{color:var(--error)} .facts .k{color:var(--ok)}
+  .sum{margin-top:var(--sp-6)} .sum .tbl td{vertical-align:top;font-size:var(--fs-13)} .sum .tbl td:first-child{white-space:nowrap;color:var(--text-2)}
+  .note{margin-top:var(--sp-4);font-size:var(--fs-12);color:var(--text-3);line-height:var(--lh-loose)}
+  @media (max-width:1180px){ .cols{grid-template-columns:minmax(0,1fr)} }
+</style>
+</head>
+<body>
+<main class="main" id="page">
+  <div class="page-h"><div><h1>字体对比</h1><div class="sub">2026-11-22 定用 MiSans（上线前核实小米授权原文）。另外两种留着对照，点「整站用它试看」可以换过去看看</div></div>
+    <div class="now" id="now"></div></div>
+  <div class="cols" id="cols"></div>
+  <section class="sum card"><div class="card-h"><h3>怎么选</h3><span class="more">授权以官方原文为准，上线前再核对一次</span></div>
+    <div class="card-b tbl-wrap"><table class="tbl"><thead><tr><th></th><th>系统字体</th><th>HarmonyOS Sans</th><th>MiSans</th></tr></thead><tbody id="sum"></tbody></table></div></section>
+  <p class="note">字体文件：HarmonyOS Sans 放在 <code>assets/fonts/harmonyos/</code>（不进 Git，用 <code>tools/fetch-fonts.sh</code> 下载）；MiSans 用 jsdelivr 上按字符拆好的网页版（<code>misans@4.1.0</code>），要联网才看得到。没加载出来的栏会显示成系统字体。</p>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {$, $$, toast} = OS;
+  OS.shell({active: ''});
+  const F = [
+    {id: 'system', name: '系统字体', by: '苹果电脑是苹方，Windows 是微软雅黑', f: 'var(--font-system)',
+      facts: '<b>不用下载</b>，打开最快。<br><span class="w">每台设备长得不一样</span>：苹果电脑好看，Windows 上的雅黑偏松、数字偏窄；阿拉伯语靠系统自带。'},
+    {id: 'harmony', name: 'HarmonyOS Sans', by: '华为 · 中文 + 阿拉伯语（Naskh）', f: 'var(--font-harmony)',
+      facts: '可免费商用、可随软件分发，要在软件里注明用了它。<br><span class="e">授权不许改字体</span>：不能拆分、不能压缩成网页格式，网页上只能整份加载，<b>中文一个字重约 8MB</b>，常用三个字重约 24MB，第一次打开会慢。'},
+    {id: 'misans', name: 'MiSans', by: '小米 · 中文 + 阿拉伯语，10 个字重', f: 'var(--font-misans)',
+      facts: '可免费商用。<br><span class="k">有按字符拆好的网页版</span>：只下载页面上用到的字，一页通常几百 KB。<br><span class="w">拆分算不算改字体</span>，上线前要读小米授权原文确认。'},
+  ];
+  const cur = () => document.documentElement.dataset.font || 'misans';
+  const card = x => `<section class="fc${cur() === x.id ? ' on' : ''}" style="--f:${x.f}">
+    <div class="fc-h"><div><h2>${x.name}</h2><p>${x.by}</p></div><button class="btn sm ${cur() === x.id ? '' : 'main'}" data-use="${x.id}">${cur() === x.id ? '整站正在用' : '整站用它试看'}</button></div>
+    <div class="fc-b">
+      <div><div class="lab">页面标题 24</div><div class="h24">跨境电商中心 · 本周经营</div></div>
+      <div><div class="lab">大数字 40</div><div class="kpi-s"><div><span class="cur">SAR</span><b>41,350</b><small>较上周 +7.8%</small></div><div><b>3.20</b><small>ROAS · 保本 2.40</small></div></div></div>
+      <div><div class="lab">正文 14</div><p class="body">11/10–11/16 花了 SAR 8,420，ROAS <b>3.19</b>。最要紧两件事：<span class="bad">H021 保温杯没货还在花钱</span>，先停；大词 water bottle 出价降 20%。14 条建议里 <span class="hi">8 条你可直批</span>，4 条要提交拍板。</p></div>
+      <div><div class="lab">表格 13</div><div class="rows">
+        <div><span>筋膜枪 X2<br><span class="t3">云屿商店 · 沙特</span></span><span>补货</span><span class="num">400 件</span><span class="num">6 天</span></div>
+        <div><span>water bottle<br><span class="t3">SP-水杯-广泛</span></span><span>降价</span><span class="num">0.85 → 0.68</span><span class="num">0.80</span></div>
+        <div><span>磁力积木 64 片<br><span class="t3">星帆商店 · 阿联酋</span></span><span>加新词</span><span class="num">AED 52</span><span class="num">7.54</span></div></div></div>
+      <div><div class="lab">字重 400 / 500 / 600 / 700</div><div class="wts"><span style="font-weight:400">等你拍板<small>常规</small></span><span style="font-weight:500">等你拍板<small>中等</small></span><span style="font-weight:600">等你拍板<small>半粗</small></span><span style="font-weight:700">等你拍板<small>粗</small></span></div></div>
+      <div><div class="lab">小字 12 / 11</div><p class="sm12">数据来自 noon 接口，15:00 拉取；接口出错时提醒张三上传后台导出的文件。</p><p class="sm11">小投 · 15:05 · 用量 ¥0.42 · 运行 R-20261119-003</p></div>
+      <div><div class="lab">数字和字母</div><div class="digits">0123456789 · ¥32.40 · 11/19 15:07 · ROAS ACOS</div></div>
+      <div><div class="lab">阿拉伯语（listing 标题）</div><p class="ar">زجاجة ماء رياضية 1 لتر، مقاومة للتسرب، خالية من BPA</p></div>
+    </div>
+    <div class="facts">${x.facts}</div></section>`;
+  function render(){
+    $('#cols').innerHTML = F.map(card).join('');
+    $('#now').innerHTML = `整站现在用：<b class="t1">${F.find(x => x.id === cur()).name}</b>`;
+    $$('[data-use]').forEach(b => b.onclick = () => { const id = b.dataset.use; if (id === cur()) return;
+      try { localStorage.setItem('os-font', id); } catch (_) {}
+      location.search = '?font=' + id; });
+  }
+  $('#sum').innerHTML = [
+    ['授权', '随设备，不用管', '可免费商用；<b>不许改字体</b>；要注明用了它', '官网写「全球免费商用」，提供 WOFF2；拆分、署名要求要读协议原文确认'],
+    ['网页加载', '不用下载', '<b>约 24MB</b>（三个字重整份加载）', '按用到的字下载，一页约几百 KB'],
+    ['阿拉伯语', '靠系统', '有配套 Naskh Arabic', '有配套 MiSans Arabic'],
+    ['各设备一致', '不一致（苹果、Windows 各一样）', '一致', '一致'],
+    ['AI 的倾向', '保底方案', '字好看，但网页太重', '<b>已选定</b>（2026-11-22）：网页版轻、中阿两种文字风格统一；上线前核实授权原文'],
+  ].map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+  render();
+</script>
+</body>
+</html>

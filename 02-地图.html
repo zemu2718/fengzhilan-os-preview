@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="zh-CN" data-theme-lock>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS 地图</title>
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  /* 地图页独有：天空底色和天空玻璃色，覆盖 tokens.css 里的同名变量 */
+  :root{
+    --ink:#0B1630; --glass:rgba(14,29,59,.55); --glass-2:rgba(14,29,59,.82); --line:rgb(var(--rgb-warm) / .16);
+    --gold:#F2B544; --gold-2:#FACB83; --vermilion:#C2410C; --text:#F5EFE4; --muted:#B9C0D4; --ok:#5EE6A0; --storm:#FF5A5A;
+    --ease:cubic-bezier(.2,.7,.1,1);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--ink);color:var(--text);
+    font:14px/1.5 -apple-system,"PingFang SC","HarmonyOS Sans SC","Microsoft YaHei",sans-serif;-webkit-font-smoothing:antialiased}
+  .num{font-variant-numeric:tabular-nums;letter-spacing:.01em}
+
+  /* ---------- 舞台：始终铺满并保持图片比例，叠加层用百分比坐标 ---------- */
+  #viewport{position:fixed;inset:0;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+  /* 鼠标点击不出系统焦点框；键盘 Tab 时才出金色描边 */
+  :focus{outline:none}
+  button:focus-visible,.card:focus-visible{outline:2px solid var(--gold-2);outline-offset:2px}
+  /* 舞台大小和位置由脚本按「整张图露全、不被顶栏底栏挡住」计算；空出来的边用同一张图的模糊版填 */
+  #backdrop{position:absolute;inset:-80px;background:var(--scene-map, none) center/cover;filter:blur(48px) brightness(.6) saturate(1.1)}
+  #stage{position:absolute;left:0;top:0;width:100vw;height:56.28vw;transform-origin:0 0;transition:transform 1.1s var(--ease)}
+  #wide{position:absolute;top:0;height:100%;left:-16.6667%;width:133.3333%}
+  #tint,#vignette{left:-16.6667%;width:133.3333%}           /* 色调和压暗盖住整张宽图，不只中间 */
+  #wide,#tint,#vignette{-webkit-mask-image:linear-gradient(to right,transparent,#000 5%,#000 95%,transparent),linear-gradient(to bottom,transparent,#000 3%,#000 97%,transparent);
+    -webkit-mask-composite:source-in;mask-image:linear-gradient(to right,transparent,#000 5%,#000 95%,transparent),linear-gradient(to bottom,transparent,#000 3%,#000 97%,transparent);mask-composite:intersect}
+  #parallax{position:absolute;inset:0;transition:transform var(--t-number) ease-out}
+  #drift{position:absolute;inset:0}
+  .layer{position:absolute;inset:0;width:100%;height:100%}
+  img.base{object-fit:cover;display:block}
+  /* WebGL 底图：按景深图做视差；不支持 WebGL 时退回普通图片 + CSS 去色 */
+  #gl{pointer-events:none}
+  body.gl img.base{visibility:hidden}
+  body.gl .region.grey{display:none}
+
+  /* 时间色调：按沙特时间给整张图一层光 */
+  #tint{mix-blend-mode:soft-light;pointer-events:none;transition:background 2s}
+  /* 边缘压暗，让 UI 更清楚 */
+  #vignette{pointer-events:none;background:
+    radial-gradient(120% 80% at 50% 45%,transparent 55%,rgba(5,9,22,.55) 100%),
+    linear-gradient(to bottom,rgba(5,9,22,.55),transparent 14%,transparent 82%,rgba(5,9,22,.7))}
+
+  /* ---------- 天气层 ---------- */
+  .region{position:absolute;inset:0;pointer-events:none}
+  .grey{background-size:133.3333% 100%;background-position:50% 0;filter:grayscale(1) brightness(.62) contrast(.9)}
+  .mist{overflow:hidden}
+  .mist i{position:absolute;width:34%;height:24%;border-radius:50%;filter:blur(26px);background:radial-gradient(closest-side,rgba(226,232,245,.5),rgba(226,232,245,.15) 60%,transparent);animation:mist 18s ease-in-out infinite alternate}
+  .mist i:nth-child(2){animation-duration:24s;animation-delay:-6s;opacity:.8}
+  .mist i:nth-child(3){animation-duration:30s;animation-delay:-12s;opacity:.6}
+  @keyframes mist{from{transform:translate(-20%,0)}to{transform:translate(30%,8%)}}
+
+  .weather-blend{position:absolute;inset:0;pointer-events:none;mask-image:linear-gradient(to right,transparent,#000 5%,#000 95%,transparent)}
+  .storm{opacity:0;transition:opacity var(--t-slow)}
+  .storm .dark{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(6,9,22,.78),rgba(10,14,30,.45) 70%);mix-blend-mode:multiply}
+  .storm .cloud{position:absolute;width:30%;height:16%;border-radius:50%;filter:blur(18px);background:radial-gradient(closest-side,rgba(28,32,48,.98),rgba(28,32,48,.6) 60%,transparent);animation:mist 14s ease-in-out infinite alternate}
+  .storm .rain{position:absolute;inset:0;opacity:.18;background:repeating-linear-gradient(103deg,transparent 0 23px,rgba(200,215,255,.55) 23px 24px),repeating-linear-gradient(98deg,transparent 0 37px,rgba(200,215,255,.4) 37px 38px);animation:rain .45s linear infinite}
+  @keyframes rain{to{background-position:-40px 120px}}
+  .storm .flash{position:absolute;inset:0;background:radial-gradient(60% 50% at 25% 40%,rgba(225,235,255,.95),transparent);opacity:0;animation:flash 6s infinite}
+  @keyframes flash{0%,31%,33.5%,36%,100%{opacity:0}32%{opacity:.6}35%{opacity:.4}}
+  body.w-storm .storm{opacity:1}
+
+  .halo{opacity:0;transition:opacity var(--t-slow);background:radial-gradient(closest-side,rgba(255,200,90,.55),transparent 70%);mix-blend-mode:screen;animation:halo 2.4s ease-in-out infinite}
+  @keyframes halo{50%{transform:scale(1.06);filter:brightness(1.3)}}
+  body.w-gold .halo{opacity:1}
+
+  .flow-overlay,.flow-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  /* 叠加层盒子比底图宽幅还大，边缘落在画面外：边缘在可见区域时，浏览器重绘会在边上闪 1px 竖线。
+     内容位置由 assets/overlay-fit.js 换算 viewBox / 画布坐标，跟 WebGL 底图对齐 */
+  .overlay-box{left:-17.5%!important;top:-10%!important;width:135%!important;height:120%!important}
+  .island-glow{opacity:.12}
+  body.w-storm .flow-canvas{opacity:.55;filter:saturate(.4)}
+  .flow-overlay,.flow-canvas{transition:opacity var(--t-enter) ease var(--t-number)}
+  body.focus .flow-overlay,body.focus .flow-canvas{opacity:0;transition:opacity var(--t-panel) ease-out}
+  @keyframes flow{to{stroke-dashoffset:-720}}
+  /* 核心光晕：贴着球心，范围小、边缘朦胧 */
+  .core-glow{position:absolute;left:51.7%;top:35.6%;width:17%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;
+    background:radial-gradient(closest-side,rgba(255,214,130,.34),rgba(255,196,100,.18) 45%,rgba(255,180,80,.06) 75%,transparent);
+    filter:blur(14px);mix-blend-mode:screen;animation:breathe 6s ease-in-out infinite;pointer-events:none}
+  @keyframes breathe{50%{transform:translate(-50%,-50%) scale(1.05);opacity:.8}}
+
+  /* ---------- 热区与卡片 ---------- */
+  .island-targets{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  .island-surface{pointer-events:fill;fill:#ffd789;fill-opacity:0;stroke:none;transition:fill-opacity var(--t-panel) ease-out}
+  .island-targets .hl .island-surface{fill-opacity:.1}
+  .island-targets g:focus{outline:none}
+  .island-targets g:focus-visible .island-surface{fill-opacity:.14;stroke:var(--gold-2);stroke-width:1.2;stroke-opacity:.8;vector-effect:non-scaling-stroke}
+  .island-targets .hot{cursor:pointer}
+  .plot.hl{border-color:#f4cc82;color:#fff0c9;box-shadow:0 0 12px #f2b54444}
+  body.focus .island-targets{visibility:hidden}
+  .card{position:absolute;min-width:220px;max-width:260px;padding:14px 16px;border-radius:16px;background:var(--glass);
+    border:1px solid var(--line);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3);
+    box-shadow:0 10px 40px rgba(0,0,0,.35),inset 0 1px 0 rgb(var(--rgb-tint) / .08);
+    transition:translate var(--t-panel) var(--ease),box-shadow var(--t-panel),opacity var(--t-enter) ease .65s,border-color var(--t-enter),visibility 0s;cursor:pointer}
+  .card:hover,.card.hl{translate:0 -3px;box-shadow:0 18px 50px rgba(0,0,0,.45),0 0 40px rgba(242,181,68,.16)}
+  .card .eyebrow{font-size:11px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+  .card h3{margin:2px 0 8px;font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+  .card .big{font-size:26px;font-weight:600;line-height:1.1}
+  .card .row{display:flex;gap:14px;margin-top:8px;color:var(--muted);font-size:12px}
+  .card .row b{color:var(--text);font-weight:600}
+  .card .leader{position:absolute;width:1px;background:linear-gradient(var(--line),transparent);left:50%}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600;background:rgb(var(--rgb-tint) / .07);color:var(--muted)}
+  .dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor}
+  .dot.live{animation:pulse 2s infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  .card.off{opacity:.82;min-width:0;padding:10px 14px}
+  .card.off .big{font-size:14px;color:var(--muted);font-weight:400}
+  .card.weather-storm{border-color:rgba(255,90,90,.6);box-shadow:0 0 0 1px rgba(255,90,90,.4),0 0 40px rgba(255,90,90,.25)}
+  .card.weather-gold{border-color:rgba(242,181,68,.7);box-shadow:0 0 0 1px rgba(242,181,68,.5),0 0 50px rgba(242,181,68,.3)}
+  .plot{position:absolute;transform:translate(-50%,-50%);font-size:11px;letter-spacing:.2em;color:rgba(255,240,215,.75);
+    padding:4px 10px;border:1px dashed rgba(255,240,215,.35);border-radius:99px;background:rgba(10,18,38,.35);backdrop-filter:blur(6px)}
+  .avatar{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 2px 6px rgba(0,0,0,.4))}
+
+  /* ---------- 顶栏 ---------- */
+  header{position:fixed;left:20px;right:20px;top:16px;z-index:20;display:flex;align-items:center;gap:16px;padding:10px 14px 10px 18px;
+    border-radius:18px;background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(18px) saturate(1.3);-webkit-backdrop-filter:blur(18px) saturate(1.3)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:.06em}
+  .brand{font:700 18px/1 "Noto Serif SC","Songti SC",serif;letter-spacing:.1em;align-items:baseline;gap:8px}
+  .brand small{font:600 11px/1 -apple-system,sans-serif;letter-spacing:.36em;color:var(--gold)}
+  .seg{display:flex;padding:3px;border-radius:12px;background:rgb(var(--rgb-tint) / .06)}
+  .seg button,.seg a{all:unset;padding:5px 12px;border-radius:9px;color:var(--muted);cursor:pointer;font-size:13px}
+  .seg button.on{background:rgb(var(--rgb-tint) / .12);color:var(--text)}
+  .spacer{flex:1}
+  .stat{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+  .stat b{color:var(--text)}
+  .badge{min-width:20px;height:20px;padding:0 6px;border-radius:99px;background:var(--vermilion);color:#fff;font-size:12px;font-weight:700;display:inline-grid;place-items:center;box-shadow:0 0 14px rgba(226,85,43,.6)}
+  .me{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--me-a),var(--me-b));border:1px solid var(--line);display:grid;place-items:center;font-size:12px}
+
+  /* ---------- 底部动态条 ---------- */
+  footer{position:fixed;left:20px;right:20px;bottom:16px;z-index:20;display:flex;align-items:center;gap:14px;padding:10px 16px;border-radius:16px;
+    background:var(--glass);border:1px solid var(--line);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);overflow:hidden}
+  .ticker{flex:1;overflow:hidden;white-space:nowrap;mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
+  .ticker div{display:inline-block;animation:tick 50s linear infinite}
+  .ticker span{margin-right:48px;color:var(--muted)} .ticker span b{color:var(--text);font-weight:600}
+  @keyframes tick{to{transform:translateX(-50%)}}
+
+  /* ---------- 演示控制 ---------- */
+  #demo{position:fixed;left:20px;bottom:84px;z-index:20;padding:12px;border-radius:16px;background:var(--glass-2);border:1px solid var(--line);backdrop-filter:blur(18px);width:260px}
+  #demo .t{font-size:11px;letter-spacing:.16em;color:var(--muted);margin-bottom:8px}
+  #demo .seg{flex-wrap:wrap;gap:2px}
+  #demo p{margin:8px 2px 0;font-size:12px;color:var(--muted)}
+
+  /* ---------- 中心面板（点击区域后滑入） ---------- */
+  /* 不用毛玻璃：面板盖在正在缩放的画面上滑入，毛玻璃每帧都要重算，推近时会卡；底色加深，看起来差不多 */
+  #panel{position:fixed;top:84px;right:20px;bottom:84px;z-index:19;width:min(420px,40vw);padding:22px;border-radius:22px;
+    background:linear-gradient(180deg,rgba(16,32,64,.94),rgba(11,22,46,.95));box-shadow:0 20px 60px rgba(0,0,0,.4);
+    border:1px solid var(--line);
+    transform:translateX(calc(100% + 40px));transition:transform var(--t-number) var(--ease);
+    display:flex;flex-direction:column;gap:14px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+    scrollbar-width:none}                                    /* 内容按屏高压缩，正常放得下；极矮的屏才需要滚，也不露滚动条 */
+  #panel::-webkit-scrollbar{display:none}
+  #panel>*{flex-shrink:0;min-width:0}
+  body.focus #panel{transform:none}
+  /* 推近：卡片、地块标签、演示面板先快速淡出；拉远：镜头基本回位后再淡入，免得跟着舞台一起被放大 */
+  .plot,#demo{transition:opacity var(--t-enter) ease .65s,visibility 0s}
+  /* 淡出后彻底隐藏：毛玻璃留在缩放中的舞台上，每帧都要重算模糊，会让推近拉远卡顿 */
+  body.focus .card,body.focus .plot,body.focus #demo{opacity:0;visibility:hidden;pointer-events:none;transition:opacity var(--t-panel) ease-out,visibility 0s var(--t-panel)}
+  #panel .close{all:unset;position:absolute;right:16px;top:14px;cursor:pointer;color:var(--muted);font-size:20px}
+  #panel .head{padding-right:28px}
+  #panel h2{margin:2px 0 0;font-size:20px;line-height:1.3} #panel .sub{color:var(--muted);font-size:12px;margin-top:2px}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .kpi{padding:10px 12px;border-radius:12px;background:rgb(var(--rgb-tint) / .05);border:1px solid rgb(var(--rgb-tint) / .06)}
+  .kpi .l{font-size:12px;color:var(--muted)} .kpi .v{font-size:19px;font-weight:600;line-height:1.3;white-space:nowrap} .kpi .d{font-size:12px}
+  .up{color:var(--ok)} .down{color:var(--storm)}
+  .agent{display:flex;gap:12px;align-items:center;padding:12px;border-radius:14px;background:linear-gradient(135deg,rgba(242,181,68,.14),rgba(242,181,68,.03));border:1px solid rgba(242,181,68,.25)}
+  .agent img{width:52px;height:52px;object-fit:contain;flex-shrink:0}
+  .agent .msg{font-size:13px;color:var(--muted)} .agent .msg b{color:var(--text)}
+  .btn{all:unset;display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:12px;background:linear-gradient(135deg,#F7C766,#E39A2E);color:#1b1305;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(242,181,68,.35)}
+  .btn.ghost{background:rgb(var(--rgb-tint) / .08);color:var(--text);box-shadow:none;font-weight:500}
+  .list div{display:flex;justify-content:space-between;gap:12px;padding:8px 2px;border-top:1px solid rgb(var(--rgb-tint) / .06);font-size:13px}
+  .list span{color:var(--muted)}
+
+
+  /* ---------- 近景：电商岛原位高清重绘，叠在地图同一位置，镜头推进时淡入 ---------- */
+  /* 2 倍高清近景（3456×3072），取自同一张无轨地图，与底图一一对应，覆盖中间构图 x0–1728、y192–1728：
+     各种屏幕推近后看得到的整块（电商岛、天体仪左半、自媒体岛底部）。四边窄幅羽化接回底图。
+     推近时镜头到位后淡入，拉远时立刻淡出 */
+  .patch{position:absolute;left:0;top:11.105%;width:56.25%;height:88.838%;opacity:0;visibility:hidden;pointer-events:none;
+    transition:opacity var(--t-enter) ease-out,visibility 0s var(--t-enter);
+    -webkit-mask-image:linear-gradient(to right,transparent,#000 2%,#000 96%,transparent),linear-gradient(to bottom,transparent,#000 3%,#000 97%,transparent);-webkit-mask-composite:source-in;
+    mask-image:linear-gradient(to right,transparent,#000 2%,#000 96%,transparent),linear-gradient(to bottom,transparent,#000 3%,#000 97%,transparent);mask-composite:intersect}
+  /* 镜头到位后再淡入：缩放结束时浏览器会把图层重新画清楚，近景图要是已经露出来，这一下就像闪了一次 */
+  body.focus .patch{opacity:1;visibility:visible;transition:opacity var(--t-number) ease var(--t-slow),visibility 0s}
+  /* WebGL 底图四周留边、整体放大了 1/.9865（横）、1/.982（竖），近景图跟着同样放大，否则岛边缘会出现重影 */
+  body.gl .patch{left:-.684%;top:10.392%;width:57.020%;height:90.466%}
+  .team{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+  .team figure{margin:0;text-align:center;font-size:12px;line-height:1.35;color:var(--muted)}
+  .team img{display:block;width:50px;height:50px;margin:0 auto 4px;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
+  .team figure.off img{filter:grayscale(1) brightness(.6);opacity:.7}
+  .team b{display:block;color:var(--text);font-weight:600}
+  /* 矮屏：一排四格指标、头像缩小，保证面板不用滚 */
+  @media (max-height:860px){
+    #panel{padding:18px;gap:10px}
+    .team img{width:44px;height:44px}
+    .kpis{grid-template-columns:repeat(4,1fr);gap:6px}
+    .kpi{padding:8px} .kpi .l,.kpi .d{font-size:11px} .kpi .v{font-size:15px}
+    .agent{padding:10px} .agent img{width:44px;height:44px}
+    .btn{padding:8px 14px}
+    .list div{padding:6px 2px}
+  }
+  @media (max-height:680px){
+    .team img{width:34px;height:34px}
+    #panel{gap:8px} #panel .sub{display:none}
+    .list div{padding:4px 2px}
+  }
+  /* ---------- 氛围层：让天空有生气、画面有前后景 ---------- */
+  /* 核心光芒：很淡的放射光，只在球附近，慢慢转 */
+  .rays{position:absolute;left:51.7%;top:35.6%;width:55%;aspect-ratio:1;transform:translate(-50%,-50%);pointer-events:none;mix-blend-mode:screen;opacity:.2;
+    background:repeating-conic-gradient(from 0deg,rgba(255,214,140,.9) 0deg 2.5deg,transparent 2.5deg 14deg);
+    -webkit-mask-image:radial-gradient(closest-side,#000 15%,rgba(0,0,0,.4) 45%,transparent 80%);mask-image:radial-gradient(closest-side,#000 15%,rgba(0,0,0,.4) 45%,transparent 80%);
+    filter:blur(10px);animation:spin 160s linear infinite}
+  @keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+  body.w-storm .rays{opacity:.05}
+  /* 待开发岛：淡淡的金色蓝图线框，表示「规划中」，不抢主角 */
+  .bp{position:absolute;aspect-ratio:1;pointer-events:none;opacity:.5}
+  .bp svg{width:100%;height:100%;overflow:visible}
+  .bp .wire{fill:none;stroke:var(--gold-2);stroke-width:1.1;stroke-dasharray:4 5;animation:flow 120s linear infinite;filter:drop-shadow(0 0 2px rgba(250,203,131,.5))}
+  .bp .solid{fill:none;stroke:var(--gold-2);stroke-width:.8;opacity:.5}
+  .bp .glass{fill:url(#bpFill)}
+  .bp .ring{fill:none;stroke:var(--gold-2);stroke-width:.8;transform-box:fill-box;transform-origin:center;animation:ring 9s ease-out infinite}
+  .bp .scan{animation:scan 10s ease-in-out infinite}
+  @keyframes ring{from{transform:scale(.6);opacity:.4}to{transform:scale(1.08);opacity:0}}
+  @keyframes scan{0%,100%{transform:translateY(0);opacity:0}20%,80%{opacity:.45}50%{transform:translateY(-90px)}}
+  body.w-storm .bp{opacity:.25}
+  /* 前景云：比地图动得多，拉出纵深 */
+  #fore{position:absolute;inset:0;pointer-events:none;transition:opacity var(--t-number),transform var(--t-number) ease-out}
+  #fore i{position:absolute;border-radius:50%;filter:blur(38px);background:radial-gradient(closest-side,rgba(255,232,212,.8),rgba(255,205,175,.3) 60%,transparent);animation:mist 26s ease-in-out infinite alternate}
+  body.focus #fore{opacity:0}
+  body.w-storm #fore i{background:radial-gradient(closest-side,rgba(60,66,90,.7),transparent)}
+
+  body.zooming #stage *,body.zooming #fore *{animation-play-state:paused!important}
+  /* 手机（< 768）：不显示地图，改为中心卡片竖排，资源核心置顶（UI 设计第四节「布局与适配」） */
+  #mlist{display:none}
+  @media (max-width:767px){
+    #viewport,#demo,#panel,footer,header .stat:not(.keep),header .spacer{display:none!important}
+    header.top.overlay{position:sticky!important}
+    html,body{overflow:auto!important;height:auto!important;min-height:100vh;background:var(--bg-0)!important}
+    header > *{white-space:nowrap;flex-shrink:0}
+    header{position:sticky;left:auto;right:auto;top:0;margin:0;border-radius:0;gap:10px;padding:10px 16px}
+    header .stat.keep{margin-left:auto}
+    #mlist{display:flex;flex-direction:column;gap:12px;padding:12px 16px 32px}
+    .mc{display:block;padding:16px;border-radius:var(--r-card);background:var(--surface-1);border:1px solid var(--divider);color:inherit;text-decoration:none}
+    .mc.core{background:radial-gradient(120% 120% at 100% 0%,rgba(242,181,68,.14),transparent 60%),var(--surface-1);border-color:rgba(242,181,68,.25)}
+    .mc .h{display:flex;align-items:center;gap:10px}
+    .mc .ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-weight:700;background:color-mix(in srgb,var(--c) 16%,transparent);color:var(--c)}
+    .mc .h b{font-size:var(--fs-16)} .mc .h small{display:block;font-size:var(--fs-12);color:var(--text-3)}
+    .mc .h .go{margin-left:auto;color:var(--text-3)}
+    .mc .ks{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+    .mc .ks div{font-size:var(--fs-12);color:var(--text-3)} .mc .ks b{display:block;font-size:var(--fs-20);font-weight:600;color:var(--text-1);font-variant-numeric:tabular-nums}
+    .mc .crew{display:flex;align-items:center;gap:4px;margin-top:12px;font-size:var(--fs-12);color:var(--text-2)}
+    .mc .crew img{width:28px;height:28px;object-fit:contain}
+    .mc .crew img.off{filter:grayscale(1);opacity:.5}
+    .mc.off{border-style:dashed;background:transparent}
+    .mc.off .h b{color:var(--text-2)}
+  }
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+  @media (max-width:767px){ .newtask{font-size:0!important;gap:0!important;padding:0 9px!important} }
+</style>
+<link rel="stylesheet" href="assets/map/map-details.css">
+</head>
+<body class="w-gold">
+<div id="viewport">
+  <div id="backdrop"></div>
+  <div id="stage">
+    <div id="parallax"><div id="drift" data-flow-stage>
+      <div id="wide"><img class="layer base" alt=""><canvas id="gl" class="layer"></canvas></div>
+      <img class="patch" src="img/zoom-commerce.webp" alt="" decoding="async">
+      <!-- 未接入：自媒体、建站 —— 去色 + 雾 -->
+      <div class="region grey" style="background-image:var(--scene-map, none);-webkit-mask-image:radial-gradient(13% 20% at 22.5% 20%,#000 45%,transparent 100%);mask-image:radial-gradient(13% 20% at 22.5% 20%,#000 45%,transparent 100%)"></div>
+      <div class="region mist" style="-webkit-mask-image:radial-gradient(14% 21% at 22.5% 20%,#000 45%,transparent 100%);mask-image:radial-gradient(14% 21% at 22.5% 20%,#000 45%,transparent 100%)"><i style="left:5%;top:12%"></i><i style="left:10%;top:22%"></i><i style="left:0;top:5%"></i></div>
+      <div class="region grey" style="background-image:var(--scene-map, none);-webkit-mask-image:radial-gradient(13% 20% at 75.5% 18%,#000 45%,transparent 100%);mask-image:radial-gradient(13% 20% at 75.5% 18%,#000 45%,transparent 100%)"></div>
+      <div class="region mist" style="-webkit-mask-image:radial-gradient(14% 21% at 75.5% 18%,#000 45%,transparent 100%);mask-image:radial-gradient(14% 21% at 75.5% 18%,#000 45%,transparent 100%)"><i style="left:58%;top:6%"></i><i style="left:64%;top:18%"></i><i style="left:55%;top:2%"></i></div>
+      <!-- noon：风暴 / 金光 -->
+      <div class="weather-blend">
+      <div class="region storm" style="-webkit-mask-image:radial-gradient(27% 32% at 23% 66%,#000 45%,transparent 100%);mask-image:radial-gradient(27% 32% at 23% 66%,#000 45%,transparent 100%)">
+        <div class="dark"></div><div class="cloud" style="left:0;top:36%"></div><div class="cloud" style="left:14%;top:39%;animation-delay:-5s"></div><div class="cloud" style="left:6%;top:44%;animation-delay:-9s;opacity:.8"></div>
+        <div class="rain"></div><div class="flash"></div>
+      </div>
+      </div>
+      <div class="region halo" style="left:2%;top:46%;width:42%;height:48%;inset:auto;position:absolute;border-radius:50%"></div>
+      <div class="rays"></div>
+      <div class="core-glow"></div>
+  <svg class="flow-overlay overlay-box" viewBox="0 0 900 506.5" preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <radialGradient id="light">
+        <stop stop-color="#fff1b6" stop-opacity=".74"/>
+        <stop offset=".48" stop-color="#ffd565" stop-opacity=".36"/>
+        <stop offset="1" stop-color="#ffb345" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <ellipse class="island-glow" cx="169" cy="330" rx="53" ry="25" fill="url(#light)"/>
+    <!-- 每一段只经过天空。段间留出浮岛遮挡流光的时间。 -->
+    <defs id="currents">
+      <path d="M287 91 C361 36 486 19 581 67"/>
+      <path d="M774 124 Q821 146 842 192"/>
+      <path d="M849 251 Q839 303 754 354"/>
+      <path d="M560 407 Q432 452 264 420"/>
+      <path d="M46 249 Q34 189 117 143"/>
+    </defs>
+  </svg>
+  <canvas class="flow-canvas overlay-box" aria-hidden="true"></canvas>
+      <div id="tint" class="layer"></div>
+      <div id="vignette" class="layer"></div>
+
+      <!-- 待开发岛上的蓝图线框（纯图形，不放字） -->
+      <svg width="0" height="0" style="position:absolute"><defs>
+        <linearGradient id="bpFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FACB83" stop-opacity="0"/><stop offset="1" stop-color="#FACB83" stop-opacity=".18"/></linearGradient>
+        <linearGradient id="bpScan" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FFF3D6" stop-opacity="0"/><stop offset=".5" stop-color="#FFF3D6"/><stop offset="1" stop-color="#FFF3D6" stop-opacity="0"/></linearGradient>
+      </defs></svg>
+      <div class="bp" style="left:75.8%;top:6.8%;width:25.1%">
+        <svg viewBox="0 0 200 200">
+          <ellipse class="ring" cx="100" cy="160" rx="66" ry="20"/>
+          <ellipse class="wire" cx="100" cy="160" rx="62" ry="19"/>
+          <path class="glass" d="M74,150 V80 A26,30 0 0 1 126,80 V150 A26,8 0 0 1 74,150Z"/>
+          <path class="wire" d="M74,150 V80 M126,150 V80 M74,80 A26,30 0 0 1 126,80 M100,50 V34"/>
+          <ellipse class="wire" cx="100" cy="80" rx="26" ry="8"/>
+          <ellipse class="solid" cx="100" cy="150" rx="26" ry="8"/>
+          <path class="solid" d="M74,115 A26,8 0 0 0 126,115 M74,132 A26,8 0 0 0 126,132 M74,98 A26,8 0 0 0 126,98"/>
+          <circle class="wire" cx="100" cy="31" r="3"/>
+          <path class="wire" d="M40,160 V140 M64,160 V140 A12,4 0 0 0 40,140 A12,4 0 0 0 64,140 M136,158 V142 M158,158 V142 A11,4 0 0 0 136,142 A11,4 0 0 0 158,142"/>
+          <g class="scan"><ellipse cx="100" cy="150" rx="27" ry="8" fill="none" stroke="url(#bpScan)" stroke-width="2"/></g>
+        </svg>
+      </div>
+      <div class="bp" style="left:56.6%;top:23.2%;width:34%">
+        <svg viewBox="0 0 200 200">
+          <ellipse class="ring" cx="100" cy="160" rx="70" ry="21" style="animation-delay:-2s"/>
+          <ellipse class="wire" cx="100" cy="160" rx="64" ry="19"/>
+          <path class="glass" d="M60,152 V118 A40,34 0 0 1 140,118 V152 A40,12 0 0 1 60,152Z"/>
+          <path class="wire" d="M60,152 V118 M140,152 V118 M60,118 A40,34 0 0 1 140,118 M100,84 V72"/>
+          <ellipse class="wire" cx="100" cy="118" rx="40" ry="12"/>
+          <ellipse class="solid" cx="100" cy="152" rx="40" ry="12"/>
+          <path class="solid" d="M60,135 A40,12 0 0 0 140,135 M80,152 V122 M100,155 V124 M120,152 V122"/>
+          <path class="wire" d="M34,160 V112 M50,160 V112 A8,3 0 0 0 34,112 A8,3 0 0 0 50,112 M150,160 V112 M166,160 V112 A8,3 0 0 0 150,112 A8,3 0 0 0 166,112"/>
+          <g class="scan" style="animation-delay:-2.5s"><ellipse cx="100" cy="152" rx="41" ry="12" fill="none" stroke="url(#bpScan)" stroke-width="2"/></g>
+        </svg>
+      </div>
+
+      <svg class="island-targets overlay-box" viewBox="0 0 900 507" preserveAspectRatio="none" aria-label="各中心的岛">
+        <g data-island="media"><path class="island-surface" d="M117,123 119,133 123,138 130,143 132,143 136,146 153,151 159,151 169,154 176,154 179,156 189,157 191,159 199,162 209,171 219,160 224,157 226,157 228,155 234,155 237,153 247,152 249,150 253,150 258,147 262,147 264,145 272,142 285,130 285,121 279,115 279,107 276,104 276,102 274,101 274,99 267,100 265,95 254,95 254,100 253,101 249,100 249,76 235,71 187,60 176,60 174,64 169,65 169,76 172,78 172,86 170,88 170,98 169,99 166,99 165,97 160,95 148,93 146,91 146,86 141,84 139,81 137,87 130,86 129,105 133,110 133,112 131,114 131,119 129,122 122,122 120,120Z"/></g>
+        <g data-island="web"><path class="island-surface" d="M582,106 582,114 584,118 592,125 611,135 617,135 620,138 625,138 627,140 630,140 636,143 650,145 657,150 663,156 665,160 670,154 676,150 689,145 703,145 707,143 715,143 719,141 737,138 758,129 767,119 767,110 765,108 765,105 759,102 759,49 751,47 743,43 735,43 735,58 734,59 727,59 726,58 726,30 720,29 717,27 703,26 703,52 702,53 700,53 697,48 688,41 672,40 664,44 659,49 657,54 654,55 653,54 653,26 642,26 638,28 629,30 629,58 627,60 624,59 624,44 616,43 600,49 600,86 588,88 588,91 585,92 584,94 586,102Z"/></g>
+        <g data-island="commerce" data-go="noon" class="hot" role="button" tabindex="0" aria-label="进入跨境电商中心"><path class="island-surface" d="M19,334 19,351 24,361 32,370 32,372 43,383 59,395 69,399 77,405 81,405 83,407 88,408 93,412 98,413 107,418 113,419 118,422 127,423 132,426 136,426 138,428 150,431 164,445 170,445 176,441 177,439 185,440 193,447 199,450 210,461 214,454 227,441 236,435 239,435 248,431 254,431 257,428 261,428 268,424 290,419 297,415 303,415 329,405 337,399 343,390 352,382 361,377 366,379 370,373 375,375 387,360 391,351 391,337 384,327 382,327 376,323 374,326 372,326 371,323 362,319 362,304 363,302 344,298 342,296 342,283 343,281 330,279 318,275 318,261 319,259 294,254 286,254 274,258 266,259 266,275 263,277 242,283 236,283 234,281 234,278 231,277 226,277 219,282 212,282 211,281 211,249 212,247 202,246 201,243 192,242 188,240 158,236 153,234 142,234 131,236 122,233 117,234 114,233 112,245 87,249 86,251 79,251 68,255 58,264 54,272 44,274 45,285 39,290 38,298 35,304 36,311 35,314 32,316 33,321 31,323 27,323 22,328Z"/></g>
+        <g data-island="east"><path class="island-surface" d="M725 214 C728 200 752 194 788 194 C827 193 859 201 865 214 Q870 232 846 243 Q832 251 809 253 L795 267 L784 255 Q757 251 735 238 Q723 230 725 214Z"/></g>
+        <g data-island="south"><path class="island-surface" d="M565,365 566,383 570,388 570,391 572,394 586,407 599,413 602,413 608,418 611,418 616,421 627,424 631,427 639,428 643,431 647,432 663,448 679,432 683,431 688,427 694,426 696,422 701,417 701,414 703,411 708,411 712,414 717,414 726,405 728,405 745,396 748,397 751,394 756,384 755,367 744,355 728,347 701,339 681,336 672,336 671,335 640,335 639,336 614,338 610,340 602,341 579,350 568,359Z"/></g>
+      </svg>
+
+      <!-- 卡片 -->
+      <div class="card" id="c-noon" data-island="commerce" data-go="noon" style="left:7%;top:31%">
+        <div class="eyebrow">跨境电商中心 · noon</div>
+        <h3><img class="avatar" src="img/avatar-xiaotou.webp" alt=""><span id="noon-state" class="pill" style="color:var(--gold)"><span class="dot live"></span>待拍板 3</span></h3>
+        <div class="big num">SAR 1,240 <small style="font-size:12px;color:var(--muted);font-weight:400">今日广告花费</small></div>
+        <div class="row"><span>ROAS <b class="num">3.18</b></span><span>成员 <b class="num">4</b></span><span>AI 员工 <b class="num">6/6</b> 在岗</span></div>
+        <div class="row" style="margin-top:4px"><span>3 家店 · 4 个站点 · <b style="color:var(--gold)">2 个要关注</b>：云屿商店 等你拍板</span></div>
+      </div>
+      <div class="card off" data-island="media" style="left:7%;top:10%"><div class="eyebrow">自媒体运营中心</div><div class="big">起雾中 · 未接入</div></div>
+      <div class="card off" data-island="web" style="right:7%;left:auto;top:10%"><div class="eyebrow">海外建站中心</div><div class="big">起雾中 · 未接入</div></div>
+      <div class="card" id="c-core" style="left:51%;top:72%;min-width:0;max-width:none;white-space:nowrap;transform:translateX(-50%)">
+        <div class="eyebrow">资源核心</div>
+        <div class="big num">SAR 6,020</div>
+        <div class="row"><span>今日销售 · 另 AED 1,610</span><span>ROAS <b>3.18</b> / 保本 2.40</span><span>AI 费用 <b class="num" id="cost">¥32.40</b></span><span>本月预算余 <b>50%</b></span></div>
+      </div>
+      <div class="plot" data-island="east" style="left:88.5%;top:44%">待 开 发</div>
+      <div class="plot" data-island="south" style="left:73.5%;top:74%">待 开 发</div>
+    </div></div>
+  </div>
+  <div id="fore">
+    <i style="left:-10%;bottom:-14%;width:42%;height:34%"></i>
+    <i style="right:-12%;bottom:-12%;width:40%;height:30%;animation-delay:-9s"></i>
+    <i style="left:34%;bottom:-18%;width:30%;height:22%;animation-delay:-15s;opacity:.7"></i>
+    <i style="right:-14%;top:30%;width:22%;height:26%;animation-delay:-4s;opacity:.5"></i>
+  </div>
+</div>
+
+
+<section id="mlist" aria-label="中心">
+  <a class="mc core" href="14-资源核心.html"><div class="h"><span class="ico" style="--c:var(--brand)">核</span><div><b>资源核心</b><small>经营结果、AI 用量与费用</small></div><span class="go">›</span></div>
+    <div class="ks"><div><b>6,020</b>今天销售 SAR · 另 AED 1,610</div><div><b>3.18</b>ROAS · 保本 2.40</div><div><b>¥32.40</b>今天 AI 费用</div></div></a>
+  <a class="mc" href="04-中心概览.html"><div class="h"><span class="ico" style="--c:var(--dept-commerce)">商</span><div><b>跨境电商中心</b><small>3 家店 · 沙特 / 阿联酋</small></div><span class="go">›</span></div>
+    <div class="ks"><div><b>3.18</b>今天 ROAS</div><div><b>1,240</b>今天花费 SAR</div><div><b style="color:var(--brand-hi)">3 件</b>等你拍板</div></div>
+    <div class="crew"><img src="img/avatar-xiaodao.webp" alt=""><img src="img/avatar-xiaoxuan.webp" alt=""><img src="img/avatar-xiaojia.webp" alt=""><img src="img/avatar-xiaotou.webp" alt=""><img src="img/avatar-xiaoce.webp" alt=""><img src="img/avatar-xiaobu.webp" alt=""><span style="margin-left:6px">AI 员工 6/6 在岗</span></div></a>
+  <div class="mc off"><div class="h"><span class="ico" style="--c:var(--dept-media)">媒</span><div><b>自媒体运营中心</b><small>未接入</small></div></div></div>
+  <div class="mc off"><div class="h"><span class="ico" style="--c:var(--dept-web)">站</span><div><b>海外建站中心</b><small>未接入</small></div></div></div>
+</section>
+<div id="demo">
+  <div class="t">演示 · 天气即状态（noon）</div>
+  <div class="seg" id="weather">
+    <button data-w="clear">晴 · 正常</button><button data-w="gold" class="on">金光 · 待拍板</button><button data-w="storm">风暴 · 异常</button>
+  </div>
+  <p>未接入的中心一直「起雾」。点 noon 区域试试镜头推进。</p>
+</div>
+
+<aside id="panel" aria-label="跨境电商中心详情" inert>
+  <button class="close" aria-label="关闭">✕</button>
+  <div class="head">
+    <div class="eyebrow" style="font-size:11px;letter-spacing:.14em;color:var(--muted)">跨境电商中心</div>
+    <h2>3 家店 · 沙特 / 阿联酋</h2>
+    <div class="sub">今天 · 数据来自 noon 接口 · 17:00 同步</div>
+  </div>
+  <div class="team">
+    <figure><img src="img/avatar-xiaodao.webp" alt=""><b>小导</b>在岗</figure>
+    <figure><img src="img/avatar-xiaoxuan.webp" alt=""><b>小选</b>在岗</figure>
+    <figure><img src="img/avatar-xiaojia.webp" alt=""><b>小架</b>在岗</figure>
+    <figure><img src="img/avatar-xiaotou.webp" alt=""><b>小投</b>在岗</figure>
+    <figure><img src="img/avatar-xiaoce.webp" alt=""><b>小测</b>在岗</figure>
+    <figure><img src="img/avatar-xiaobu.webp" alt=""><b>小补</b>在岗</figure>
+  </div>
+  <div class="kpis">
+    <div class="kpi"><div class="l">今日广告花费</div><div class="v num">SAR 1,240</div><div class="d">较昨天 +2.0%</div></div>
+    <div class="kpi"><div class="l">今日销售额 · 沙特三站</div><div class="v num">SAR 6,020</div><div class="d up">较昨天 +5.1% <span style="color:var(--text-3)">· 阿联酋 AED 1,610 另算</span></div></div>
+    <div class="kpi"><div class="l">ROAS</div><div class="v num">3.18</div><div class="d up">+0.06</div></div>
+    <div class="kpi"><div class="l">保本 ROAS</div><div class="v num">2.40</div><div class="d" style="color:var(--muted)">按毛利表</div></div>
+  </div>
+  <div class="agent"><img src="img/avatar-xiaotou.webp" alt="小投">
+    <div><b>小投</b> <span class="pill" style="color:var(--ok)"><span class="dot live"></span>在岗</span>
+      <div class="msg">小投 15:05 复盘完：云屿商店 4 条超出张三权限<b>等你拍板</b>，其余在执行。小补出了<b>补货申请 3 个商品</b>，小测建议吸管杯<b>停止投入</b>，都等你定。</div></div></div>
+  <div style="display:flex;gap:10px"><a class="btn" href="03-组织树.html">等你拍板 · 3 件</a><a class="btn ghost" href="05-小投工作台.html#home">进入工作台</a></div>
+  <div class="list">
+    <!-- 地图上不逐个列店铺：只列要关注的站点，其余一句话带过；完整列表在中心概览 -->
+    <div>云屿商店 · 沙特<span class="num">4 条等你拍板 · 补货 2 个</span></div>
+    <div>月砂商店 · 沙特<span class="num">ROAS 2.30，低于保本 2.40</span></div>
+    <div><a href="04-中心概览.html" style="color:inherit">另外 2 个站点正常 ›</a><span class="num">星帆商店 阿联酋、沙特</span></div>
+    <div>小巡<span class="num">每小时巡查 · 上次 17:00</span></div>
+  </div>
+</aside>
+
+<footer>
+  <span class="pill" style="color:var(--gold)"><span class="dot live"></span>实时</span>
+  <div class="ticker"><div>
+    <span><b>小巡</b> 17:00 巡查 6 位 AI 员工、4 位成员、4 个店铺站点 · 没有要紧的事</span>
+    <span><b>小投</b> 正在执行 12 条已批的调整</span>
+    <span><b>小投</b> 15:05 复盘完 · 云屿商店 14 条建议交张三初审</span>
+    <span><b>小巡</b> 15:10 日报已推送到企业微信</span>
+    <span><b>张三</b> 16:20 初审 云屿商店  14 条 · 直批 8 条，4 条提交决策层</span>
+    <span><b>资源核心</b> 17:00 用量同步 · 今日 AI 费用 ¥32.40</span>
+  
+    <span><b>小巡</b> 17:00 巡查 6 位 AI 员工、4 位成员、4 个店铺站点 · 没有要紧的事</span>
+    <span><b>小投</b> 正在执行 12 条已批的调整</span>
+    <span><b>小投</b> 15:05 复盘完 · 云屿商店 14 条建议交张三初审</span>
+    <span><b>小巡</b> 15:10 日报已推送到企业微信</span>
+    <span><b>张三</b> 16:20 初审 云屿商店  14 条 · 直批 8 条，4 条提交决策层</span>
+    <span><b>资源核心</b> 17:00 用量同步 · 今日 AI 费用 ¥32.40</span>
+  </div></div>
+</footer>
+
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>OS.mountTop('map', {overlay: true}); OS.fullscreen();</script>
+<script src="assets/map/map-flow-tex.js"></script>
+<script>
+  const $ = s => document.querySelector(s), $$ = s => document.querySelectorAll(s);
+  $('.base').src = window.MAP_TEX.map;
+  document.documentElement.style.setProperty('--scene-map', 'url("' + window.MAP_TEX.map + '")');
+  // 沙特时间时钟 + 时段色调
+  const tint = $('#tint');
+  function tick(){
+    const now = new Date(Date.now() + (3*60 + new Date().getTimezoneOffset())*60000);
+    const h = now.getHours(), m = now.getMinutes();
+    if ($('#clock')) $('#clock').textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+    const [name, bg] = h < 5 ? ['深夜','rgba(20,40,110,.55)'] : h < 8 ? ['破晓','rgba(255,150,120,.35)'] :
+      h < 16 ? ['白昼','rgba(255,240,210,.18)'] : h < 19 ? ['黄昏','rgba(255,140,60,.38)'] : ['夜','rgba(30,50,130,.5)'];
+    if ($('#phase')) $('#phase').textContent = name; tint.style.background = bg;
+  }
+  tick(); setInterval(tick, 30000);
+
+  // 天气即状态
+  const states = {
+    clear:{cls:'', pill:'<span class="dot"></span>正常', color:'var(--ok)'},
+    gold:{cls:'w-gold', pill:'<span class="dot live"></span>待拍板 3', color:'var(--gold)'},
+    storm:{cls:'w-storm', pill:'<span class="dot live"></span>异常 · 一个广告组 2 小时花了日预算 80%、0 单', color:'var(--storm)'},
+  };
+  $$('#weather button').forEach(b => b.onclick = () => {
+    $$('#weather button').forEach(x => x.classList.toggle('on', x === b));
+    const s = states[b.dataset.w];
+    document.body.classList.remove('w-gold','w-storm'); if (s.cls) document.body.classList.add(s.cls);
+    const p = $('#noon-state'); p.innerHTML = s.pill; p.style.color = s.color;
+    $('#c-noon').classList.toggle('weather-storm', b.dataset.w === 'storm');
+    $('#c-noon').classList.toggle('weather-gold', b.dataset.w === 'gold');
+  });
+  $('#c-noon').classList.add('weather-gold');
+
+  // 布局：整张图露全（顶栏、底栏之间），宽屏两侧、窄屏上下的空当由模糊底图填
+  const stage = $('#stage'), A = 3072 / 1729, EXT = 4096 / 3072;   // 舞台 = 中间原构图；底图左右扩画后宽 4096
+  const SAFE = {x0:.01, x1:.99, y0:.01, y1:.93};            // 原构图里必须露出来的范围：最上面的天线到最下面的岛尖
+  let BAR = 76;                                               // 全屏时顶栏收起，上下各留 40
+  document.addEventListener('fullscreenchange', () => { BAR = document.fullscreenElement ? 40 : 76; window.dispatchEvent(new Event('resize')); });                                             // 顶栏、底栏各占的高度
+  function layout(){
+    const vw = innerWidth, vh = innerHeight, ah = vh - BAR * 2;
+    // 先求能铺满屏幕的大小（宽图铺满），再缩到上下都露全；但不小于「宽图刚好铺满宽度」，最后保证左右也露全
+    const cover = Math.max(vw / EXT, vh * A), fitV = ah * A / (SAFE.y1 - SAFE.y0);
+    const W = Math.min(Math.max(vw / EXT, Math.min(cover, fitV)), vw / (SAFE.x1 - SAFE.x0)), H = W / A;
+    stage.style.width = W + 'px'; stage.style.height = H + 'px';
+    stage.style.left = (vw - W) / 2 + 'px';
+    stage.style.top = BAR + (ah - (SAFE.y1 - SAFE.y0) * H) / 2 - SAFE.y0 * H + 'px';
+    if (document.body.classList.contains('focus')) focus(true);
+  }
+  const panel = $('#panel');
+  const islandNodes = [...stage.querySelectorAll('[data-island]')];
+  let currentIsland = null;
+  function highlightIsland(id){
+    if (id === currentIsland) return;
+    currentIsland = id;
+    islandNodes.forEach(node => node.classList.toggle('hl', node.dataset.island === id));
+  }
+  function islandAt(node){
+    return document.body.classList.contains('focus') ? null : node?.closest?.('[data-island]')?.dataset.island ?? null;
+  }
+  stage.addEventListener('pointerover', e => {
+    if (e.pointerType !== 'touch') highlightIsland(islandAt(e.target));
+  });
+  stage.addEventListener('pointerout', e => {
+    if (e.pointerType !== 'touch') highlightIsland(islandAt(e.relatedTarget));
+  });
+  stage.addEventListener('focusin', e => highlightIsland(islandAt(e.target)));
+  stage.addEventListener('focusout', e => highlightIsland(islandAt(e.relatedTarget)));
+  stage.querySelector('.hot').addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); focus(true); }
+  });
+  // 镜头推拉期间暂停舞台里的装饰动画（蓝图、球纹、雾、光晕、传送带），省掉每帧重绘，镜头动画更顺
+  let zoomTimer = 0;
+  function zooming(){
+    document.body.classList.add('zooming');
+    clearTimeout(zoomTimer);
+    zoomTimer = setTimeout(() => document.body.classList.remove('zooming'), 1200);   // 与 #stage 的 1.1s 过渡对齐
+  }
+  // 镜头推进：把电商岛的高清块推到面板左边的空间里
+  function focus(on){
+    highlightIsland(null);
+    const wasOn = document.body.classList.contains('focus');
+    document.body.classList.toggle('focus', on);
+    if (on !== wasOn) zooming();
+    panel.inert = !on;
+    if (on && !wasOn) panel.querySelector('.close').focus({preventScroll:true});
+    if (!on) { if (panel.contains(document.activeElement) || stage.contains(document.activeElement)) document.activeElement.blur(); stage.style.transform = 'none'; return; }
+    const W = stage.offsetWidth, H = stage.offsetHeight, L = stage.offsetLeft, T = stage.offsetTop;
+    const P = {x:0, y:.3702 * H, w:.5 * W, h:.5922 * H};      // 电商岛所在区域（中间构图 x0 y640 起 1536×1024）
+    const panelW = Math.min(420, innerWidth * .4) + 40;
+    const aw = innerWidth - panelW - 20, ah = innerHeight - BAR * 2;
+    const sc = Math.min(aw / P.w, ah / P.h);
+    let tx = (aw / 2) - L - sc * (P.x + P.w / 2), ty = (BAR + ah / 2) - T - sc * (P.y + P.h / 2);
+    tx = Math.min(tx, -L + W * (EXT - 1) / 2 * sc * .9);          // 推近后不露出扩画后的左边缘
+    ty = Math.max(ty, innerHeight - T - H * .97 * sc);            // 也不露出下边缘
+    stage.style.transform = `translate(${tx}px,${ty}px) scale(${sc})`;
+  }
+  layout(); addEventListener('resize', layout);
+  $$('[data-go="noon"]').forEach(el => el.onclick = () => focus(true));
+  $('#panel .close').onclick = () => focus(false);
+  addEventListener('keydown', e => e.key === 'Escape' && focus(false));
+
+  if (location.hash.includes('still')) document.head.insertAdjacentHTML('beforeend','<style>*{transition:none!important}</style>');
+  if (location.hash.includes('storm')) $('[data-w=storm]').click();
+  if (location.hash.includes('focus')) setTimeout(() => focus(true), 300);
+
+  // 鼠标视差
+  const par = $('#parallax');
+  addEventListener('pointermove', e => {
+    if (document.body.classList.contains('focus')) return;
+    const x = (e.clientX / innerWidth - .5) * -6, y = (e.clientY / innerHeight - .5) * -4;
+    par.style.transform = `translate(${x}px,${y}px)`;
+    $('#fore').style.transform = `translate(${x * 4}px,${y * 3}px)`;     // 前景动得比地图多
+  });
+
+
+  // 资源核心数字轻微跳动（模拟实时）
+  let cost = 32.40;
+  setInterval(() => { cost += Math.random() * .08; $('#cost').textContent = '¥' + cost.toFixed(2); }, 5000);
+  // ================= WebGL 底图：景深视差 + 状态着色 =================
+  (function(){
+    const canvas = $('#gl'), T = window.MAP_TEX || {};
+    const gl = canvas.getContext('webgl', {premultipliedAlpha:false, antialias:false});
+    if (!gl || !T.map) return;
+    let mouse = {x:0,y:0}, target = {x:0,y:0}, lastMove = -1e9, t0 = performance.now();
+    const still = location.hash.includes('still');
+    addEventListener('pointermove', e => { target.x = e.clientX/innerWidth*2-1; target.y = e.clientY/innerHeight*2-1; lastMove = performance.now(); });
+    const fixed = location.hash.match(/mx(-?[\d.]+)/);            // 调试：#mx1 / #mx-1 固定鼠标位置
+    if (fixed) { target.x = mouse.x = +fixed[1]; target.y = mouse.y = 0; lastMove = 1e15; }
+
+    const vs = 'attribute vec2 p;varying vec2 uv;void main(){uv=vec2(p.x*.5+.5,.5-p.y*.5);gl_Position=vec4(p,0.,1.);}';
+    const fs = `precision highp float;varying vec2 uv;
+      uniform sampler2D uMap,uDepth;uniform float uHasDepth,uCloudShift,uSharp;uniform vec2 uMouse,uMapPx;
+      float depth(vec2 q){
+        if(uHasDepth<.5) return smoothstep(.1,1.,q.y)*.9+.05;
+        // 景深图已在加载时预先抹平（见 blurDepth），这里只取一次
+        return texture2D(uDepth,q).r;}
+      float ell(vec2 q,vec4 e){vec2 k=(q-e.xy)/e.zw;return 1.-smoothstep(.55,1.,length(k));}
+      void main(){
+        vec2 q=.5+(uv-.5)*vec2(.9865,.982);             // 留边，视差时不露底
+        float d=depth(q);
+        // 核心（铜环、细杆、光球）不参与视差，边缘平滑过渡，免得细杆被扭弯
+        d=mix(d,.5,ell(vec2((q.x-.125)/.75,q.y),vec4(.51,.37,.25,.40)));
+        vec2 s=q+uMouse*(d-.5)*vec2(.009,.008);         // 近处（电商岛、云海）动得多，天空反向，轨道和核心基本不动
+        vec2 scene=vec2((s.x-.125)/.75,s.y);
+        float cloud=max(ell(scene,vec4(.507,.914,.15,.102)),ell(scene,vec4(.908,.902,.08,.09)));
+        s.x+=cloud*uCloudShift;
+        vec4 c=texture2D(uMap,s);
+        // 轻度锐化：减去周围 1 像素的平均，云纹和建筑边缘更利落；限幅避免亮边发白
+        vec3 nb=(texture2D(uMap,s+vec2(uMapPx.x,0.)).rgb+texture2D(uMap,s-vec2(uMapPx.x,0.)).rgb
+                +texture2D(uMap,s+vec2(0.,uMapPx.y)).rgb+texture2D(uMap,s-vec2(0.,uMapPx.y)).rgb)*.25;
+        c.rgb=clamp(c.rgb+clamp((c.rgb-nb)*uSharp,-.12,.12),0.,1.);
+        float l=dot(c.rgb,vec3(.3,.59,.11));
+        vec2 o=vec2((s.x-.125)/.75,s.y);              // 宽图坐标 → 中间原构图坐标（区域位置按原构图写）
+        // 未接入的中心（自媒体、建站）：去色压暗
+        float gr=max(ell(o,vec4(.225,.20,.13,.19)),ell(o,vec4(.755,.18,.13,.19)));
+        c.rgb=mix(c.rgb,vec3(l)*.62,gr);
+        // 待开发的空岛：略去色、压暗，存在但不抢眼
+        float pl=max(ell(o,vec4(.875,.45,.08,.12)),ell(o,vec4(.735,.75,.11,.15)));
+        c.rgb=mix(c.rgb,mix(vec3(l),c.rgb,.5)*.72,pl);
+        gl_FragColor=vec4(c.rgb,1.);
+      }`;
+    const sh = (t,src) => { const o = gl.createShader(t); gl.shaderSource(o,src); gl.compileShader(o);
+      if(!gl.getShaderParameter(o,gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(o)); return o; };
+    const pr = gl.createProgram(); gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs)); gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,fs)); gl.linkProgram(pr); gl.useProgram(pr);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(pr,'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+    const U = n => gl.getUniformLocation(pr,n);
+    // 景深图抹平：每点取周围 7×7、间隔 16 像素的平均（细杆、铜环附近深浅变化大，不抹平会被推成波浪形）。
+    // 原来在着色器里每个像素取 49 次，GPU 吃紧时推近拉远会一顿一顿；改成加载时算一次，横竖两遍。
+    function blurDepth(im){
+      const w = im.width, h = im.height, c = document.createElement('canvas'); c.width = w; c.height = h;
+      const x2 = c.getContext('2d'); x2.drawImage(im, 0, 0);
+      const src = x2.getImageData(0, 0, w, h).data, a = new Float32Array(w * h), b = new Float32Array(w * h), out = new Uint8Array(w * h);
+      for (let i = 0; i < w * h; i++) a[i] = src[i * 4];
+      const cl = (v, m) => v < 0 ? 0 : v > m ? m : v;
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let t = 0; for (let k = -3; k <= 3; k++) t += a[y * w + cl(x + k * 16, w - 1)]; b[y * w + x] = t / 7; }
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let t = 0; for (let k = -3; k <= 3; k++) t += b[cl(y + k * 16, h - 1) * w + x]; out[y * w + x] = Math.round(t / 7); }
+      return out;
+    }
+    const tex = (unit, src, cb, blur) => { const im = new Image(); im.onload = () => {
+      const t = gl.createTexture(); gl.activeTexture(gl.TEXTURE0+unit); gl.bindTexture(gl.TEXTURE_2D,t);
+      if (blur) { gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1); gl.texImage2D(gl.TEXTURE_2D,0,gl.LUMINANCE,im.width,im.height,0,gl.LUMINANCE,gl.UNSIGNED_BYTE,blurDepth(im)); }
+      else gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,im);
+      [gl.TEXTURE_WRAP_S,gl.TEXTURE_WRAP_T].forEach(k=>gl.texParameteri(gl.TEXTURE_2D,k,gl.CLAMP_TO_EDGE));
+      gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+      cb(im); }; im.src = src; };
+    let ready = 0;
+    const MAXW = 4096;   // 底图本身 4096 宽，画布再大也不会更清楚，只会更吃 GPU
+    const SHARP = +(location.hash.match(/sharp([\d.]+)/)||[,.8])[1];          // 调试：#sharp0 关闭锐化
+    gl.uniform1f(U('uHasDepth'),0);
+    tex(0, T.map, im => { gl.uniform1i(U('uMap'),0); gl.uniform2f(U('uMapPx'),1/im.width,1/im.height); gl.uniform1f(U('uSharp'),SHARP); ready = 1; document.body.classList.add('gl'); });
+    if (T.depth) tex(1, T.depth, () => { gl.uniform1i(U('uDepth'),1); gl.uniform1f(U('uHasDepth'),1); dirty = 1; }, true);
+    const motion = matchMedia('(prefers-reduced-motion: reduce)');
+    const cloudShift = U('uCloudShift');
+    let shift = 0, lastKey = '', dirty = 1, lastNow = null;
+    function loop(now){
+      const reduce = motion.matches;
+      const time = still ? 4.2 : (now-t0)/1000;
+      if (!still && !reduce && now-lastMove > 2500) { target.x = Math.sin(time*.21)*.55; target.y = Math.sin(time*.13+1)*.35; }   // 没动鼠标时自己慢慢晃
+      const focused = document.body.classList.contains('focus');
+      const k = focused || reduce ? 0 : 1;
+      // 按真实时间插值，掉帧时也不会一跳一跳
+      const dt = Math.min(.1, (now - (lastNow ?? now)) / 1000); lastNow = now;
+      const ease = 1 - Math.pow(.95, dt * 60);
+      mouse.x += (target.x*k-mouse.x)*ease; mouse.y += (target.y*k-mouse.y)*ease;
+      if (ready) {
+        const r = Math.min(devicePixelRatio||1, 2), w = Math.min(canvas.clientWidth*r, MAXW)|0, hh = Math.round(w*canvas.clientHeight/canvas.clientWidth);
+        if (canvas.width !== w || canvas.height !== hh) { canvas.width = w; canvas.height = hh; gl.viewport(0,0,w,hh); dirty = 1; }
+        // 推近后云不再漂，画面静止时不重画，把 GPU 让给镜头动画和面板
+        if (!focused && !reduce && !still) shift = .004 * Math.sin(time * .085);
+        else if (focused) { shift *= 1 - ease; if (Math.abs(shift) < 1e-5) shift = 0; }   // 推近后云回到原位，跟高清近景对齐
+        const key = [mouse.x.toFixed(4), mouse.y.toFixed(4), shift.toFixed(5)].join();
+        if (dirty || key !== lastKey) {
+          gl.uniform1f(cloudShift, shift);
+          gl.uniform2f(U('uMouse'), mouse.x, mouse.y);
+          gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+          lastKey = key; dirty = 0;
+        }
+      }
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  })();
+</script>
+<script src="assets/map/map-details.js"></script>
+<script src="assets/map/overlay-fit.js"></script>
+<script src="assets/map/island-flow.js"></script>
+</body>
+</html>

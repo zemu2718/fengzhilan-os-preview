@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 运行和执行记录</title>
+<!-- P11 运行详情：一次复盘的步骤、用量、产物、日志；下面是批准后通过接口执行的记录，每条可撤回。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  .head{display:flex;align-items:center;gap:var(--sp-4);flex-wrap:wrap}
+  .head img{width:56px;height:56px;object-fit:contain}
+  .facts{display:flex;flex-wrap:wrap;gap:var(--sp-2) var(--sp-5);font-size:var(--fs-13);color:var(--text-2);margin-top:var(--sp-2)}
+  .facts b{color:var(--text-1);font-weight:500}
+  .two{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:var(--sp-4)}
+  .use{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3)}
+  .use .kpi .v{font-size:var(--fs-20)}
+  .arts{display:flex;gap:var(--sp-2);flex-wrap:wrap}
+  .art{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-btn);background:var(--surface-2);font-size:var(--fs-13);cursor:pointer}
+  .art:hover{background:var(--surface-3)} .art span{color:var(--text-3);font-size:var(--fs-12)}
+  details.log summary{cursor:pointer;color:var(--text-2);font-size:var(--fs-13);list-style:none;display:flex;align-items:center;gap:6px}
+  details.log[open] summary .ic{transform:rotate(180deg)}
+  .log pre{margin:var(--sp-3) 0 0;padding:var(--sp-3) var(--sp-4);border-radius:var(--r-btn);background:#0F1218;color:var(--text-2);font:var(--fs-12)/1.8 var(--font-mono);white-space:pre-wrap}
+  .chg{font-family:var(--font-mono);font-size:var(--fs-12);white-space:nowrap}
+  .chg s{color:var(--text-3)}
+  tr.undone td{color:var(--text-3)}
+  @media (max-width:1023px){ .two{grid-template-columns:minmax(0,1fr)} }
+</style>
+</head>
+<body>
+<main class="main" id="page"><div id="body"></div></main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, q, icon, fmt, yuan, st, taskSt, ai, store, img, states, toast, confirm, drawer} = OS;
+  OS.shell({active: 'tasks', side: 'runs'});
+  const R = D.runs['R-20261119-003'];
+  let ex = D.executions.map(e => ({...e}));
+  function render(state = '正常'){
+    const B = $('#body'), A = ai(R.ai), S = store(R.store);
+    if (state === '加载中') return B.innerHTML = '<div class="skel" style="height:90px;margin-bottom:16px"></div><div class="two"><div class="skel" style="height:240px"></div><div class="skel" style="height:240px"></div></div>';
+    if (state === '出错') return B.innerHTML = states.error({what: '这次运行失败了', why: '第 1 步拉取数据时 noon 接口超时', next: '<button class="btn sm main">重跑这一次</button><a class="btn sm" href="05-小投工作台.html">改参数重跑</a>'});
+    B.innerHTML = `
+      <div class="crumb"><a href="${OS.withAs('10-任务.html')}">任务</a> / ${R.id}</div>
+      <div class="page-h"><div class="head"><img src="${img(A.img)}" alt=""><div><h1>${R.name} · ${S.name}</h1>
+        <div class="facts"><span>发起 <b>${R.by}</b></span><span>AI 员工 <b>${A.name}</b></span><span>开始 <b class="num">${R.start}</b></span><span>用时 <b class="num">${R.took}</b></span><span class="mono t3">${R.id}</span></div></div></div>
+        <div class="acts">${taskSt(R.status)}<a class="btn" href="05-小投工作台.html#done">看建议表</a></div></div>
+      <div class="two">
+        <section class="card pad"><h3 style="margin-bottom:8px">步骤</h3><div class="steps">
+          ${R.steps.map(s => `<div class="step done"><span class="i">${icon('check', 11)}</span><div><b>${s[0]}</b><div class="s">${s[1]}</div></div><span class="t num">${s[2]}</span></div>`).join('')}
+          <div class="step doing"><span class="i"></span><div><b>初审和拍板</b><div class="s">张三直批 8 条 · 4 条等决策层拍板</div></div><span class="t">16:20</span></div></div></section>
+        <section class="card pad"><h3 style="margin-bottom:12px">用量</h3><div class="use">
+          <div class="kpi flat"><div class="l">模型</div><div class="v">${R.usage.model}</div></div>
+          <div class="kpi flat"><div class="l">费用</div><div class="v num">${yuan(R.usage.cost)}</div></div>
+          <div class="kpi flat"><div class="l">输入 tokens</div><div class="v num">${fmt(R.usage.input)}</div></div>
+          <div class="kpi flat"><div class="l">输出 tokens</div><div class="v num">${fmt(R.usage.output)}</div></div></div>
+          <p class="hint" style="margin-top:12px">计算部分跑脚本，不花钱；只有看搜索词、写总结用了模型。</p></section>
+      </div>
+      <section class="card pad section"><h3 style="margin-bottom:12px">产物</h3><div class="arts">
+        ${R.artifacts.map((a, i) => `<span class="art" data-a="${i}">${icon(i === 1 ? 'globe' : i === 2 ? 'db' : 'file', 18)}${a[0]}<span>${a[1]}</span></span>`).join('')}</div></section>
+      <section class="card section"><div class="card-h"><h3>批准后的执行记录</h3><span class="t3 fs-12">小投通过 noon 接口执行，每条记下改前改后的值</span><span class="more">今天</span></div>
+        <div class="card-b tbl-wrap"><table class="tbl"><thead><tr><th>时间</th><th>店铺</th><th>操作</th><th>对象</th><th>改前 → 改后</th><th>谁批的</th><th>状态</th><th></th></tr></thead><tbody id="ex"></tbody></table></div></section>
+      <section class="card pad section"><details class="log"><summary>${icon('chev')}运行日志</summary><pre>${R.log.join('\n')}</pre></details></section>`;
+    $$('.art').forEach(a => a.onclick = () => drawer({title: R.artifacts[+a.dataset.a][0], sub: R.id, body: `<div class="note">原型里不展示文件内容。上线后：建议表可下载，复盘页在这里直接预览，原始数据存 R2 留底 90 天。</div>`}));
+    exRows();
+  }
+  function exRows(){
+    $('#ex').innerHTML = ex.map((e, i) => `<tr class="${e.status === '已撤回' ? 'undone' : ''}"><td class="num t3">${e.time}</td><td>${store(e.store).name}</td><td>${e.op}</td><td><b>${e.target}</b>${e.undo ? `<span class="sub">${e.undo}</span>` : ''}</td>
+      <td class="chg"><s>${e.before}</s> → ${e.after}</td><td>${e.by}</td><td>${taskSt(e.status)}</td>
+      <td class="r">${e.status === '已生效' ? `<button class="btn sm ghost" data-u="${i}">${icon('undo', 14)}撤回</button>` : ''}</td></tr>`).join('');
+    $$('[data-u]').forEach(b => b.onclick = async () => {
+      const e = ex[+b.dataset.u];
+      if (!await confirm({title: `撤回「${e.op} · ${e.target}」？`, msg: `小投会通过接口把它改回 ${e.before}，并记一条撤回记录。`, ok: '撤回', danger: true})) return;
+      e.status = '已撤回'; e.undo = `${OS.who.name} 17:05 撤回`; exRows(); toast('已撤回', `${e.target} 改回 ${e.before}。`);
+    });
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 视频</title>
+<!-- P19 视频（小架负责，一期上线）。参考 LinkFox AI 的 AI 视频：灵感视频、创作（商品视频、带货视频、批量生成、视频复刻、视频编辑）、工具（视频翻译、视频水印、视频剪辑）、历史记录。
+     每个工具同一个模板：左边参数，右边「生成结果 / 优秀案例」。作图页的视频类工具跳到这里。示例图都是演示内容。
+     页面：#home 灵感视频 · #history 历史记录 · #t/工具编号 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<link rel="stylesheet" href="assets/studio.css">
+<style>
+  .vhero{display:grid;grid-template-columns:1.25fr 1fr 1fr 1.1fr;grid-template-rows:180px 180px;gap:var(--sp-3)}
+  .vh{position:relative;border-radius:var(--r-pop);overflow:hidden;cursor:pointer;border:1px solid var(--divider);background:var(--surface-2)}
+  .vh img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform var(--t-number) var(--ease)}
+  .vh:hover img{transform:scale(1.05)}
+  .vh::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgb(var(--rgb-deep) / .75),rgb(var(--rgb-deep) / .05) 55%,rgb(var(--rgb-deep) / .35))}
+  .vh .t{position:absolute;z-index:1;left:16px;top:14px;right:16px}
+  .vh .t b{display:flex;align-items:center;gap:6px;font-size:var(--fs-16);color:#fff}
+  .vh .t span{display:block;font-size:var(--fs-12);color:rgb(var(--rgb-tint) / .75);margin-top:4px}
+  .vh .new{position:absolute;z-index:1;right:12px;top:12px;padding:2px 8px;border-radius:6px;background:var(--accent);color:#fff;font-size:11px;font-weight:600}
+  .vh.tall{grid-row:span 2}
+  .vfilter{display:flex;flex-wrap:wrap;gap:var(--sp-3) var(--sp-4);align-items:flex-end;padding:var(--sp-4);border-radius:var(--r-card);background:var(--surface-1);border:1px solid var(--divider);margin-bottom:var(--sp-4)}
+  .vfilter label{display:flex;flex-direction:column;gap:6px;font-size:var(--fs-12);color:var(--text-3)}
+  .vfilter .select{height:34px;width:auto;min-width:130px}
+  .vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:var(--sp-3)}
+  .vc{position:relative;border-radius:var(--r-card);overflow:hidden;background:var(--surface-1);border:1px solid var(--divider);aspect-ratio:2/3;cursor:pointer}
+  .vc img{width:100%;height:100%;object-fit:cover;display:block}
+  .vc::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(10,12,16,.85))}
+  .vc .m{position:absolute;z-index:1;left:10px;right:10px;bottom:10px;font-size:var(--fs-12);color:rgb(var(--rgb-tint) / .85)}
+  .vc .m b{display:block;color:#fff;font-size:var(--fs-13);margin-bottom:4px}
+  .vc .same{position:absolute;z-index:2;right:10px;top:10px;opacity:0;transition:opacity var(--t-hover)}
+  .vc:hover .same{opacity:1}
+  .vc .play{z-index:1}
+  .vc .tg{position:absolute;z-index:1;left:10px;top:10px;padding:2px 8px;border-radius:6px;background:rgba(0,0,0,.55);color:#fff;font-size:11px}
+  .seg-big{display:flex;gap:6px;flex-wrap:wrap}
+  @media (max-width:1279px){ .vhero{grid-template-columns:1fr 1fr;grid-template-rows:repeat(3,170px)} .vh.tall{grid-row:span 1} }
+  @media (max-width:767px){ .vhero{grid-template-columns:minmax(0,1fr);grid-template-rows:none;grid-auto-rows:160px} }
+</style>
+</head>
+<body>
+<main class="main" id="page"></main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script src="assets/studio.js"></script>
+<script>
+  OS.shell({active: 'video'});
+  const {$, $$, icon, toast, states} = OS;
+  const {C, ic} = STUDIO;
+  const LINK = (l, ph, or) => ({t: 'link', l, ph, btn: l.includes('视频') ? '解析' : '分析', or});
+  const MODEL = {t: 'select', l: '视频模型', opts: ['标准 · 适合日常稳妥出片', '高清 · 细节更好，慢一点', '人物 · 真人出镜更自然']};
+  const RES = {t: 'seg', l: '分辨率', opts: ['480P', '720P', '1080P'], on: 1};
+  const LANG = l => ({t: 'two', l, small: '（必填）', opts: [['沙特', '阿联酋', '美国'], ['阿语', '英语']]});
+  const T = {
+    pvideo: {groupName: '创作', name: '商品视频', icon: 'video', desc: '一张商品图，生成电商视频', lead: '让商品动起来，点击率更高', modes: ['普通模式', '高级模式'],
+      demo: {in: ['product'], out: ['video'], video: 1, ar: '3/2'}, outs: ['video'],
+      fields: [LINK('商品链接', '粘贴 noon / TikTok Shop / 亚马逊商品链接', '或 手动上传参考素材'), {t: 'upload', l: '参考素材', picked: ['product', 'detail'], r: '<a class="warn fs-12">图片规则</a>'}, {t: 'toggle', l: '首尾帧', small: '指定第一帧和最后一帧'},
+        {t: 'text', l: '商品信息', small: '（选填）', ph: '上传商品图后点「AI 分析」，自动识别商品信息；也可以自己写', tools: ['AI 分析']}, LANG('视频描述'), {t: 'chips', l: '模板', opts: ['商品展示', '开箱', '场景使用', '对比'], on: 0}, MODEL, RES, {t: 'seg', l: '时长', opts: ['5 秒', '10 秒', '15 秒'], on: 1}, {t: 'seg', l: '数量', opts: ['1', '2', '3', '4']}],
+      cost: '2.00', unit: '条'},
+    ugc: {groupName: '创作', name: '带货视频', icon: 'mic', desc: '真人出镜的带货短视频', lead: '上传商品图，自动写脚本，一键生成真人带货视频',
+      demo: {in: ['product'], out: ['ugc'], video: 1, ar: '2/3'}, outs: ['ugc'],
+      fields: [LINK('商品链接', '粘贴 noon / TikTok Shop / 亚马逊商品链接', '或 手动上传商品图'), {t: 'upload', l: '商品图', picked: ['product']}, LANG('提示词描述'),
+        {t: 'text', l: '想要的画面', ph: '写出视频里的主体、动作和场景，用 @ 引用商品图。比如：年轻人在厨房里手持 @商品图1 介绍保温效果', tools: ['UGC 种草', '开箱测评']}, MODEL, RES],
+      cost: '4.50', unit: '条', wait: '大约 3–5 分钟，可以先去做别的，做好了会提醒你'},
+    vbatch: {groupName: '创作', name: '批量生成', icon: 'layers', desc: '多个商品一次出视频', lead: '一次给多个商品出视频，每个商品各几条',
+      demo: {in: ['product', 'massagegun', 'kidscup'], labels: ['商品 1', '商品 2', '商品 3'], out: ['video'], video: 1}, outs: ['video', 'ugc', 'hand'],
+      fields: [{t: 'upload', l: '商品图', small: '（每个商品一张，最多 20 个）', picked: ['product', 'massagegun', 'kidscup']}, {t: 'chips', l: '模板', opts: ['商品展示', '场景使用', 'UGC 种草'], on: 0}, {t: 'seg', l: '每个商品', opts: ['1 条', '2 条', '3 条']}, MODEL, RES],
+      cost: '2.00', unit: '条'},
+    vcopy: {groupName: '创作', name: '视频复刻', tag: 'NEW', icon: 'copy', desc: '粘贴爆款视频链接，一键复刻', lead: '学一条爆款视频的镜头和节奏，换成我们的商品',
+      demo: {in: ['hand'], labels: ['参考视频'], out: ['ugc'], video: 1, ar: '2/3'}, outs: ['ugc'],
+      fields: [LINK('视频链接', '粘贴 TikTok / noon 视频链接', '或 手动上传参考视频'), {t: 'upload', l: '参考视频', video: 1}, {t: 'upload', l: '商品与参考图', picked: ['product']},
+        {t: 'select', l: 'AI 脚本分析', small: '（选填）', opts: ['默认自动分析', '只学镜头', '只学文案']}, MODEL, RES],
+      cost: '4.50', unit: '条', wait: '大约 3–5 分钟'},
+    vedit: {groupName: '创作', name: '视频编辑', icon: 'pen', desc: '改视频里的商品、人物、风格', lead: '上传原视频和参考图，说清楚要改什么，原片动作一帧不丢',
+      demo: {in: ['product'], labels: ['原视频'], out: ['color'], outLabel: '编辑结果', video: 1}, outs: ['color'],
+      fields: [{t: 'upload', l: '原视频', video: 1, hint: 'MP4 / MOV，100MB 以内，可截取 4–30 秒'}, {t: 'upload', l: '参考图', small: '（选填）', picked: ['color']},
+        {t: 'text', l: '编辑需求', ph: '用 @ 引用原视频或参考图。比如：保留 @视频1 的动作，把水壶换成 @参考图1 的颜色', tools: ['提示词优化'], max: 2500}, MODEL],
+      cost: '6.00', unit: '条'},
+    vtrans: {groupName: '工具', name: '视频翻译', icon: 'globe', desc: '一键翻成阿语，口型同步', lead: '上传视频，翻成目标语言，口型跟着改',
+      demo: {in: ['ugc'], labels: ['原视频（英语）'], out: ['ugc'], outLabel: '阿语版', video: 1, ar: '2/3'}, outs: ['ugc'],
+      fields: [{t: 'note', text: '自动识别原来的语言，口型和目标语言对上。'}, {t: 'upload', l: '原视频', video: 1, hint: 'MP4 / MOV，100MB 以内，画面清楚、声音完整（2–30 秒）'}, {t: 'select', l: '模式', opts: ['高级模式', '快速模式']}, {t: 'select', l: '翻成', opts: ['阿语', '英语']}, {t: 'toggle', l: '口型同步', on: 1}],
+      cost: '1.50', unit: '条'},
+    vwm: {groupName: '工具', name: '视频水印', tag: 'NEW', icon: 'drop', desc: '批量加店铺水印，防搬运', lead: '上传视频，批量加文字水印',
+      demo: {in: ['video'], labels: ['原视频'], out: ['video'], outLabel: '加了水印', wm: 1, video: 1, ar: '3/2'}, outs: ['video'],
+      fields: [{t: 'upload', l: '原视频', video: 1, hint: '一次最多 10 个，单个 500MB、3 分钟以内'}, {t: 'text', l: '水印文字', ph: '比如：@风之岚旗舰店', max: 20},
+        {t: 'styles', l: '水印样式', opts: [['滚动水印', '从右往左匀速移动', 'scroll'], ['粒子水印', '粒子聚散成字', 'dots'], ['跳动水印', '定时在角落换位置', 'corner'], ['平铺水印', '斜着铺满，防搬运', 'tile']]},
+        {t: 'seg', l: '位置', opts: ['顶部', '中部', '底部'], on: 2}, {t: 'seg', l: '速度', opts: ['慢', '标准', '快'], on: 1}],
+      cost: '0.10', unit: '条'},
+    vcut: {groupName: '工具', name: '视频剪辑', icon: 'scissors', desc: '选几段视频，直接剪', lead: '选要剪的片段，在时间线上拼好',
+      demo: {custom: () => `<h3>选要剪的视频，点「开始剪」进入时间线</h3><div class="compare"><div class="grid g2" style="gap:8px;width:220px">${['scene', 'studio', 'hand', 'video'].map(p => `<figure style="width:auto"><img src="${C(p)}" alt=""></figure>`).join('')}</div><span class="ar">${icon('arrow', 26)}</span>
+        <div class="timeline"><div class="scr"><img src="${C('video')}" alt=""></div><div class="trk"><div class="cut">${['scene', 'studio'].map(p => `<img src="${C(p)}" alt="">`).join('')}</div><div class="cut">${['hand', 'video'].map(p => `<img src="${C(p)}" alt="">`).join('')}</div></div></div></div>`},
+      outs: ['video'], fields: [{t: 'upload', l: '视频片段', video: 1, hint: '选 2 个以上，可以从历史记录里选'}, {t: 'seg', l: '比例', opts: ['9:16 竖屏', '1:1', '16:9']}, {t: 'toggle', l: '自动配乐', on: 1}, {t: 'toggle', l: '自动字幕', small: '阿语 / 英语'}],
+      cost: '0', btn: '开始剪', costNote: '剪辑不花钱；加配乐、字幕用到模型时按用量记'},
+  };
+  const HOT = [['ugc', '厨房里讲保温', '12.4 万', 'SAR 3,200'], ['hand', '户外一手拿', '8.1 万', 'SAR 2,150'], ['ramadan', '斋月晚餐桌', '6.7 万', 'SAR 1,880'], ['video', '沙漠徒步', '5.2 万', 'SAR 1,320'], ['wf', '白色星期五开箱', '4.9 万', 'SAR 1,100'], ['flatlay', '俯拍平铺转场', '3.3 万', 'SAR 760']];
+
+  STUDIO.mount({
+    title: '视频', home: 'home', toolsPage: 'home', sameTool: 'vcopy', cases: ['video', 'ugc', 'hand', 'ramadan'],
+    jump: ['18-作图.html', '去做图', 'grid'],
+    nav: [['灵感', [['home', '灵感视频', 'flame']]],
+          ['创作', [['t/pvideo', '商品视频', 'video'], ['t/ugc', '带货视频', 'mic'], ['t/vbatch', '批量生成', 'layers'], ['t/vcopy', '视频复刻', 'copy'], ['t/vedit', '视频编辑', 'pen']]],
+          ['工具', [['t/vtrans', '视频翻译', 'globe'], ['t/vwm', '视频水印', 'drop', 'NEW'], ['t/vcut', '视频剪辑', 'scissors']]],
+          [null, [['history', '历史记录', 'clock']]]],
+    tools: T,
+    pages: {
+      home(state){
+        const vh = (k, img, cls = '', isNew) => `<div class="vh ${cls}" data-tool="${k}" tabindex="0"><img src="${C(img)}" alt=""><div class="t"><b>${T[k].name} ${icon('right', 14)}</b><span>${T[k].desc}</span></div>${isNew ? '<span class="new">NEW</span>' : ''}</div>`;
+        const grid = state === '没有数据' ? states.empty({img: 'empty-task.webp', title: '还没有灵感数据', text: '接上 TikTok、noon 的公开数据后，这里按播放量和销售额排出爆款视频。'})
+          : `<div class="vgrid">${HOT.map(([p, t, play, gmv]) => `<div class="vc" tabindex="0"><img src="${C(p)}" alt=""><span class="tg">示例</span><button class="btn sm main same" data-same="${p}">做同款</button><div class="m"><b>${t}</b>播放 ${play} · 销售 ${gmv}</div></div>`).join('')}</div>`;
+        return `<div class="std-h"><div><h1>创作工具</h1></div></div>
+          <section class="vhero">${vh('pvideo', 'video', 'tall')}${vh('vcopy', 'hand', '', 1)}${vh('vedit', 'color', '', 1)}${vh('vbatch', 'flatlay', 'tall', 1)}${vh('ugc', 'ugc')}${vh('vtrans', 'ramadan', '', 1)}</section>
+          <div class="sec-h"><h2>灵感发现</h2><span>看别人卖得好的视频，点「做同款」</span></div>
+          <div class="row" style="gap:var(--sp-3);flex-wrap:wrap;margin-bottom:var(--sp-3)"><div class="seg" data-seg><button class="on">${ic('flame', 13)} 爆款视频 · 按销售额</button><button>商品视频</button><button>店铺选品</button></div><span class="sp"></span>
+            <div class="seg" data-seg><button class="on">noon</button><button>TikTok</button><button>Amazon</button></div></div>
+          <div class="vfilter"><label>品类<select class="select"><option>全部品类</option><option>杯壶</option><option>3C 数码</option></select></label><label>地区<select class="select"><option>沙特</option><option>阿联酋</option></select></label>
+            <label>发布时间<div class="seg" data-seg><button class="on">7 天</button><button>14 天</button><button>30 天</button></div></label><label>排序<select class="select"><option>从高到低</option><option>最新</option></select></label>
+            <label style="flex-direction:row;align-items:center;gap:8px;margin-left:auto">只看 AI 做的<button class="switch" role="switch" aria-checked="false" aria-label="只看 AI 做的"></button></label></div>
+          ${grid}<p class="hint" style="margin-top:12px">示例数据。上线时按接得到的公开数据显示；接不到的平台不显示，不估算。</p>`;
+      },
+      history(state){
+        if (state === '没有数据') return `<div class="card">${states.empty({img: 'empty-task.webp', title: '还没有视频', text: '选一个商品，点「商品视频」开始。', act: '<a class="btn main" href="#t/pvideo">做商品视频</a>'})}</div>`;
+        const W = [['video', '商品视频 · 沙漠徒步', '今天 16:40', '生成中 70%', 'run'], ['ugc', '带货视频 · 厨房讲保温', '今天 15:20', '等你挑', 'wait'], ['ugc', '视频翻译 · 阿语版', '昨天 18:40', '上架待拍板', 'wait'], ['hand', '视频复刻 · 户外一手拿', '11/18', '已用上', 'ok'], ['video', '视频水印 · 3 条', '11/18', '已用上', 'ok'], ['color', '视频编辑 · 换陶土色', '11/17', '没用上', 'off']];
+        return `<div class="std-h"><div><h1>历史记录</h1><p>小架做过的视频；图片在作图页的创作历史</p></div><div class="acts"><div class="seg" data-seg><button class="on">全部</button><button>等你挑</button><button>已用上</button></div></div></div>
+          <div class="vgrid">${W.map(([p, t, w, s, k]) => `<div class="vc"><img src="${C(p)}" alt=""><span class="play"><span>${icon('play', 16)}</span></span><div class="m"><b>${t}</b>H039-2 · ${w}<div style="margin-top:6px"><span class="st ${k}">${s}</span></div></div></div>`).join('')}</div>`;
+      },
+    },
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · UI 预览</title>
+<!-- UI 确认总入口：所有高保真原型页，按决策层一天的使用顺序排。页面全部确认后再开始写代码。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  body{background:radial-gradient(60% 40% at 80% 0%,rgba(242,181,68,.08),transparent 70%),var(--bg-0)}
+  .wrap{max-width:1180px;margin:0 auto;padding:var(--sp-7) var(--sp-5)}
+  .hd{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:var(--sp-6);align-items:end;margin-bottom:var(--sp-6)}
+  .hd h1{font-family:var(--font-serif);font-size:var(--fs-32);letter-spacing:.04em}
+  .hd p{color:var(--text-2);margin-top:var(--sp-2);line-height:var(--lh-loose);max-width:62ch}
+  .hd img{width:100%;border-radius:var(--r-pop);border:1px solid var(--divider)}
+  .loop{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:var(--sp-4) 0 var(--sp-6);font-size:var(--fs-13);color:var(--text-2)}
+  .loop b{padding:6px 12px;border-radius:var(--r-pill);background:var(--surface-2);font-weight:500;color:var(--text-1)}
+  .grp{margin-bottom:var(--sp-6)}
+  .grp > h2{font-size:var(--fs-16);margin-bottom:var(--sp-3);color:var(--text-2);font-weight:500}
+  .pages{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--sp-3)}
+  .pg{display:flex;flex-direction:column;gap:6px;padding:var(--sp-4);border-radius:var(--r-card);background:var(--surface-1);border:1px solid var(--divider);transition:border-color var(--t-hover),transform var(--t-hover)}
+  .pg:hover{border-color:color-mix(in srgb,var(--brand) 45%,transparent);transform:translateY(-2px)}
+  .pg .n{font-family:var(--font-mono);font-size:var(--fs-12);color:var(--text-3)}
+  .pg b{font-size:var(--fs-16)}
+  .pg p{font-size:var(--fs-13);color:var(--text-2);line-height:var(--lh)}
+  .pg .alt{display:flex;gap:10px;flex-wrap:wrap;margin-top:auto;padding-top:6px;font-size:var(--fs-12)}
+  .pg .alt a{color:var(--brand-hi)}
+  .pg.new{border-color:color-mix(in srgb,var(--ok) 35%,transparent)}
+  .pg.new .n::after{content:"11-20 新增";margin-left:8px;color:var(--ok);font-family:var(--font-sans)}
+  .todo li{margin:8px 0;color:var(--text-2);line-height:var(--lh-loose)}
+  .todo b{color:var(--text-1);font-weight:500}
+  @media (max-width:767px){ .hd{grid-template-columns:minmax(0,1fr)} .wrap{padding:var(--sp-6) 16px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hd"><div><h1>风之岚 OS · UI 预览</h1>
+    <p>从下方选择页面，体验组织树、地图和 AI 员工工作台。店名为虚构名称，经营数字均为演示数据。</p></div>
+    <img src="img/hero-commerce.webp" alt=""></header>
+
+  <div class="loop"><b>每日巡检 15:00</b>→<b>小投 · 小补 · 小测出建议</b>→<b>运营初审</b>→<b>拍板人拍板，定跟进人</b>→<b>AI 员工通过接口执行 / 成员跟进</b>→<b>小巡每小时巡查</b>→<b>15:10 日报</b></div>
+
+  <div id="groups"></div>
+
+</div>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const G = [
+    ['决策层、主管每天看的', [
+      ['03', '组织树', '首页：决策层 → 小巡 → 各中心，一列一个中心；结果、要你做的、谁在干活。', '03-组织树.html'],
+      ['02', '地图', '全局的另一种看法：天体仪地图，点岛进中心。', '02-地图.html'],
+      ['08', '等你拍板', '广告调整、补货申请、测款停止或追加；批准时定跟进人。', '08-等你拍板.html', [['运营直批', '08-等你拍板.html#ops']]],
+      ['09', '等你拍板（手机）', '从企业微信通知点进来；紧急的事一键批准。', '09-等你拍板-手机.html', [['紧急通知进来', '09-等你拍板-手机.html?urgent=1']]],
+      ['15', '日报', '小巡 15:10 写；网页 + 企业微信消息卡片。', '15-日报.html']]],
+    ['跨境电商中心', [
+      ['04', '中心概览', '店铺结果、谁在干活、最近任务。', '04-中心概览.html'],
+      ['04b', '工作台首页', '6 张 AI 员工卡，全部在岗，点卡片进各自的工作台。', '05-小投工作台.html#home'],
+      ['05', '小投工作台', '广告复盘、投前算账、定时；建议表、商品库、历史。', '05-小投工作台.html', [['运营张三看', '05-小投工作台.html?as=m-zs#done']]],
+      ['05b', '小测工作台', '测款复盘（四种结论）、测款计划（本轮标准，主管确认）。', '05b-小测工作台.html', [['测款计划', '05b-小测工作台.html#plan']], 1],
+      ['05c', '小补工作台', '补货计划 → 补货申请；在途；给工厂、货代的消息草稿。', '05c-小补工作台.html', [['在途', '05c-小补工作台.html#inbound'], ['消息草稿', '05c-小补工作台.html#drafts']], 1],
+      ['05d', '小架工作台', '写 listing（英文 + 阿语）、7 张商品图、A+、视频分镜、上架前检查；上架要拍板。', '05d-小架工作台.html', [['上架前检查', '05d-小架工作台.html#check'], ['A+ 内容', '05d-小架工作台.html#aplus']], 1],
+      ['05e', '小选工作台', '算利润（沙特 FBN）、清货价、候选商品；数字都由脚本算。', '05e-小选工作台.html', [['候选商品', '05e-小选工作台.html#cands'], ['清货价', '05e-小选工作台.html#clear']], 1],
+      ['05f', '小导工作台', '日常问答（注明来源，默认页）、找助手、新人带教 5 步。', '05f-小导工作台.html', [['新人带教', '05f-小导工作台.html#onboard']], 1],
+      ['17', '新任务', '人主动叫 AI 员工干活：说一句话，交给对的 AI 员工；改线上照样拍板。', '17-新任务.html', [['问一个只读的问题', '17-新任务.html?q=星帆商店 阿联酋站 ROAS 为什么一直往下走？']], 1],
+      ['18', '作图', '小架负责：首页、创作工具（商品与场景、模特与服装、修图、素材）、灵感库、商品库、链接管理、批量生图、创作历史。', '18-作图.html', [['创作工具', '18-作图.html#tools'], ['灵感库', '18-作图.html#ideas'], ['链接管理', '18-作图.html#listings']], 1],
+      ['19', '视频', '小架负责：灵感视频；商品视频、带货视频、批量生成、视频复刻、视频编辑；视频翻译、水印、剪辑。', '19-视频.html', [['商品视频', '19-视频.html#t/pvideo'], ['视频水印', '19-视频.html#t/vwm']], 1]]],
+    ['记录', [
+      ['10', '任务', '每件事从出建议、初审、拍板到执行生效的状态。', '10-任务.html'],
+      ['20', '定时任务', '今天 15:00 每日巡检的流水线 + 所有定时；运营只看，主管、决策层能改时间、暂停。', '20-定时任务.html', [['出错的样子', '20-定时任务.html?state=出错']], 1],
+      ['11', '运行和执行记录', '一次复盘的步骤、用量、产物、日志；执行记录可撤回。', '11-运行详情.html?run=R-20261119-003']]],
+    ['AI 员工和资源', [
+      ['12', 'AI 员工', '花名册：小巡在最前，7 位都在岗。', '12-AI员工.html'],
+      ['13', 'AI 员工详情', '正在干的活、费用、能动哪些、一键暂停。', '13-AI员工详情.html?id=xiaotou', [['小测', '13-AI员工详情.html?id=xiaoce'], ['小补', '13-AI员工详情.html?id=xiaobu'], ['小巡', '13-AI员工详情.html?id=xiaoxun']]],
+      ['14', '资源核心', '收入、AI 用量与费用、预算。', '14-资源核心.html']]],
+    ['其他', [
+      ['01', '登录', '账号密码登录，账号由决策层或主管开。', '01-登录.html'],
+      ['16', '管理后台', '参考百智办公的后台结构：数据分析、使用记录、资源管理（模型、技能、店铺接口）、预算、系统设置（成员、谁能批什么、通知、操作记录）。', '16-管理后台.html', [['操作记录', '16-管理后台.html#ops'], ['预算设置', '16-管理后台.html#budget']], 1],
+      ['00', '设计规范', '颜色、字号、间距、组件样张，直接读设计变量。', '00-设计规范.html'],
+      ['00b', '字体对比', '系统字体、HarmonyOS Sans、MiSans 放一起看，可以整站换成某个字体试看（还没定）。', '00b-字体对比.html']]],
+  ];
+  document.getElementById('groups').innerHTML = G.map(([t, ps]) => `<section class="grp"><h2>${t}</h2><div class="pages">${ps.map(([n, name, d, href, alt = [], isNew]) =>
+    `<div class="pg${isNew ? ' new' : ''}"><span class="n">P${n}</span><a href="${href}"><b>${name}</b></a><p>${d}</p><div class="alt"><a href="${href}">打开</a>${alt.map(([l, h]) => `<a href="${h}">${l}</a>`).join('')}</div></div>`).join('')}</div></section>`).join('');
+</script>
+</body>
+</html>

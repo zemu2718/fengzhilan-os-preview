@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · AI 员工</title>
+<!-- P12 AI 员工花名册（决策层、主管看全公司）。小巡放最前：它负责巡查所有人和写日报。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  .lead{display:grid;grid-template-columns:200px minmax(0,1fr) minmax(0,280px);gap:var(--sp-5);align-items:center;padding:var(--sp-5) var(--sp-6);
+    background:radial-gradient(60% 120% at 12% 50%,rgba(242,181,68,.12),transparent 70%),var(--surface-1);border-color:rgba(242,181,68,.22)}
+  .lead .ava{width:180px;height:180px;margin:-8px 0}
+  .lead h2{font-size:var(--fs-24)} .lead h2 small{font-size:var(--fs-14);color:var(--text-3);font-weight:400;margin-left:8px}
+  .lead p{color:var(--text-2);margin-top:8px;line-height:var(--lh-loose);max-width:60ch}
+  .lead .facts{display:flex;flex-direction:column;gap:10px;font-size:var(--fs-13);color:var(--text-2)}
+  .lead .facts b{color:var(--text-1);font-weight:500}
+  .crew{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp-4);margin-top:var(--sp-4)}
+  .mate{display:flex;flex-direction:column;gap:var(--sp-2);padding:var(--sp-4)}
+  .mate .top-r{display:flex;align-items:flex-start;gap:var(--sp-2)}
+  .mate .ava{width:84px;height:84px;margin:-4px 0 0 -6px}
+  .mate .st{margin-left:auto}
+  .mate h3{font-size:var(--fs-16)} .mate h3 small{font-size:var(--fs-12);color:var(--text-3);font-weight:400;margin-left:6px}
+  .mate p{font-size:var(--fs-13);color:var(--text-2);line-height:var(--lh);min-height:3em}
+  .mate .now{font-size:var(--fs-12);color:var(--text-2);padding:8px 10px;border-radius:var(--r-btn);background:var(--surface-2)}
+  .mate .nums{display:flex;gap:var(--sp-4);font-size:var(--fs-12);color:var(--text-3);margin-top:auto;padding-top:var(--sp-2)}
+  .mate .nums b{display:block;font-size:var(--fs-16);color:var(--text-1);font-weight:600}
+  .scenes{display:flex;flex-wrap:wrap;gap:6px}
+  @media (max-width:1279px){ .crew{grid-template-columns:repeat(2,minmax(0,1fr))} .lead{grid-template-columns:160px minmax(0,1fr)} .lead .facts{grid-column:1/-1} .lead .ava{width:150px;height:150px} }
+  @media (max-width:767px){ .crew{grid-template-columns:minmax(0,1fr)} .lead{grid-template-columns:minmax(0,1fr);text-align:center} .lead .ava{margin:0 auto} }
+</style>
+</head>
+<body>
+<main class="main" id="page">
+  <div class="page-h"><div><h1>AI 员工</h1><div class="sub">7 位都在岗：小巡巡查所有人、写日报；小导带新人、答疑；其余按业务流程：小选选品 → 小架上架 → 小投管广告 → 小测测款 → 小补补货</div></div></div>
+  <div id="body"></div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, fmt, yuan, st, ai, member, img, states, icon} = OS;
+  OS.shell({active: 'ai'});
+  function render(state = '正常'){
+    const B = $('#body');
+    if (state === '加载中') return B.innerHTML = '<div class="skel" style="height:200px"></div><div class="crew">' + '<div class="skel" style="height:260px"></div>'.repeat(6) + '</div>';
+    if (state === '出错') return B.innerHTML = states.error({what: 'AI 员工状态没拿到', why: '运行器暂时连不上'});
+    if (state === '没有数据') return B.innerHTML = `<div class="card">${states.empty({img: 'empty-task.webp', title: '还没有 AI 员工', text: '从技能库同步小投、小测、小补的技能后，它们会出现在这里。', act: '<a class="btn" href="16-管理后台.html#skills">去设置</a>'})}</div>`;
+    const C = ai('xiaoxun');
+    B.innerHTML = `<a class="card lead link enter" href="${OS.withAs('13-AI员工详情.html?id=xiaoxun')}">
+        <div class="ava"><img src="${img(C.img)}" alt=""><span class="hb"></span></div>
+        <div><h2>${C.name}<small>${C.role}</small></h2><p>${C.desc}</p></div>
+        <div class="facts"><span>${st('在岗 · 上次 ' + C.last, 'run')}</span><span>${C.schedule}</span><span>本周巡查和日报 <b class="num">${C.week.runs}</b> 次 · <b class="num">${yuan(C.week.cost)}</b></span><span>负责人 <b>${member(C.owner).name}</b></span></div>
+      </a>
+      <div class="crew">${D.ai.filter(a => a.id !== 'xiaoxun').map((a, i) => `<a class="card mate link enter" style="animation-delay:${.06 * (i + 1)}s" href="${OS.withAs('13-AI员工详情.html?id=' + a.id)}">
+        <div class="top-r"><div class="ava ${a.status === 'on' ? '' : 'off'}"><img src="${img(a.img)}" alt=""><span class="hb"></span></div>${a.status === 'on' ? st('在岗', 'run') : st(a.later + '上线', 'off')}</div>
+        <h3>${a.name}<small>${a.role}</small></h3><p>${a.desc}</p>
+        <div class="scenes">${a.scenes.map(s => `<span class="tag">${s}</span>`).join('')}</div>
+        ${a.status === 'on' ? `<div class="now">${a.now.task} · 第 ${a.now.step + 1}/${a.now.steps.length} 步</div>
+          <div class="nums"><span><b class="num">${a.week.runs}</b>本周运行</span><span><b class="num">${yuan(a.week.cost)}</b>本周费用</span><span><b class="num">${a.week.adopt}</b>建议采纳</span></div>` : `<div class="nums"><span>负责人 ${member(a.owner).name}</span></div>`}
+      </a>`).join('')}</div>`;
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>

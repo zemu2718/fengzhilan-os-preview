@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 小补工作台</title>
+<!-- P05c 小补工作台（架构页面清单 4c）。三个场景：补货计划 → 补货申请（要花钱，要拍板）；在途维护；给工厂、货代的消息草稿（只出草稿，不发送）。
+     数字由脚本 restock-plan 算；缺资料的商品不给数量，进「待核实」；最晚下单日已过照实写「已过」；金额只算采购单价 × 件数。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<link rel="stylesheet" href="assets/schedule.css">
+<style>
+  .head{display:flex;align-items:center;gap:var(--sp-4);flex-wrap:wrap}
+  .head img{width:64px;height:64px;object-fit:contain;filter:drop-shadow(0 6px 12px rgba(0,0,0,.4))}
+  .head .who{font-size:var(--fs-13);color:var(--text-2);margin-top:4px;display:flex;gap:var(--sp-3);flex-wrap:wrap;align-items:center}
+  .req{display:flex;align-items:center;gap:var(--sp-4);flex-wrap:wrap;padding:var(--sp-4) var(--sp-5);margin-bottom:var(--sp-4);border-radius:var(--r-card);
+    background:linear-gradient(90deg,color-mix(in srgb,var(--brand) 12%,var(--surface-1)),var(--surface-1));border:1px solid color-mix(in srgb,var(--brand) 30%,transparent)}
+  .req .big{font-size:var(--fs-24);font-weight:600}
+  .req .s{font-size:var(--fs-13);color:var(--text-2);margin-top:2px}
+  .days{display:flex;align-items:center;gap:8px;min-width:110px}
+  .days .bar{flex:1;height:5px;border-radius:3px;background:rgb(var(--rgb-tint) / .08);position:relative}
+  .days .bar i{position:absolute;inset:0 auto 0 0;border-radius:3px;background:var(--k)}
+  .late{color:var(--error);font-weight:600}
+  .soon{color:var(--wait)}
+  .tbl td .qty{font-weight:600}
+  .tbl tr.na td{color:var(--text-3)}
+  .tbl tr.na td b{color:var(--text-2)}
+  .fx{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px var(--sp-4);font-size:var(--fs-13)}
+  .fx dt{color:var(--text-3)} .fx dd{margin:0}
+  .formula{padding:var(--sp-3) var(--sp-4);border-radius:var(--r-btn);background:var(--surface-2);font-size:var(--fs-13);line-height:var(--lh-loose);color:var(--text-2)}
+  .formula b{color:var(--text-1);font-weight:500}
+  .draft{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--sp-3);padding:var(--sp-4) var(--sp-5)}
+  .draft .to{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
+  .draft .to b{font-size:var(--fs-14)}
+  .draft .textarea{min-height:96px;line-height:var(--lh-loose)}
+  .grid-d{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-4)}
+  @media (max-width:1023px){ .grid-d{grid-template-columns:minmax(0,1fr)} }
+</style>
+</head>
+<body class="wb" data-as="m-zs">
+<main class="main" id="page">
+  <section class="pagebar flush wbband"><span class="pb-bg" style="background-image:url(img/wb-xiaobu.webp);background-position:62% 50%"></span>
+    <div class="pb-who"><img src="img/avatar-xiaobu.webp" alt=""><div><div class="pb-crumb"><a href="05-小投工作台.html#home">工作台</a> / 小补</div><h1>小补 · 补货</h1><div class="pb-sub"><span class="dot live"></span>在岗 · 负责人 赵六（采购） · 只出草稿，补货要拍板</div></div></div>
+    <div class="pb-pills"><span class="pill">本周 <b>8</b> 次</span><span class="pill">费用 <b>¥1.60</b></span><a class="pill warn" href="08-等你拍板.html">补货申请 <b>SAR 9,800</b></a></div>
+    <div class="pb-r"><div class="seg" id="sc" role="tablist"></div></div>
+  </section>
+  <div id="body"></div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, icon, fmt, store, st, states, toast, drawer, confirm} = OS;
+  OS.shell({active: '', side: 'xiaobu'});
+  const R = D.restock;
+  const SC = [['plan', '补货计划'], ['inbound', '在途'], ['drafts', '消息草稿'], ['sched', '定时']];
+  let scene = SC.some(s => '#' + s[0] === location.hash) ? location.hash.slice(1) : 'plan', state = '正常';
+  if (location.hash === '#eval') scene = 'plan';
+  const req = R.rows.filter(r => r.status === '建议补');
+  const total = req.reduce((n, r) => n + r.qty * r.unit, 0);
+  function tabs(){
+    const n = {plan: req.length, inbound: R.inbound.length, drafts: R.drafts.length, sched: ''};
+    $('#sc').innerHTML = SC.map(([k, l]) => `<button role="tab" class="${k === scene ? 'on' : ''}" data-s="${k}">${l}<span class="n num">${n[k]}</span></button>`).join('');
+    $$('#sc button').forEach(b => b.onclick = () => { scene = b.dataset.s; history.replaceState(null, '', '#' + scene); render(); });
+  }
+  const daysCell = r => { const k = r.days <= 7 ? '--error' : r.days <= 14 ? '--wait' : '--ok';
+    return `<div class="days" style="--k:var(${k})"><b class="num">${r.days} 天</b><span class="bar"><i style="width:${Math.min(100, r.days / 30 * 100)}%"></i></span></div>`; };
+  const lastCell = r => r.lastOrder === '已过' ? `<span class="late">已过</span><span class="sub">${r.lastOrderNote}</span>`
+    : r.lastOrder === '—' ? '<span class="t3">—</span>' : `<span class="num ${/2 天|3 天/.test(r.lastOrderNote) ? 'soon' : ''}">${r.lastOrder}</span><span class="sub">${r.lastOrderNote}</span>`;
+  function render(s = state){
+    state = s; tabs();
+    const B = $('#body');
+    if (s === '加载中') return B.innerHTML = '<div class="skel" style="height:84px;margin-bottom:16px"></div>' + states.loading(5);
+    if (s === '出错') return B.innerHTML = states.error({what: '今天的补货计划没算成', why: '15:00 拉库存和销量时 noon 接口超时，15:40 会再试一次', next: '<button class="btn sm main">现在重算</button>'});
+    if (s === '没有数据') return B.innerHTML = `<div class="card">${states.empty({img: 'empty-xiaobu.webp', title: '还没法算补货', text: '小补要用商品库里的采购价、起订量、每箱件数、全周期、安全库存。先补上这些资料，明天 15:06 就有补货计划。', act: '<a class="btn main" href="05-小投工作台.html#prod">去商品库补资料</a>'})}</div>`;
+    ({plan, inbound, drafts, sched})[scene]();
+  }
+  function plan(){
+    $('#body').innerHTML = OS.say('xiaobu', '今天 15:06', `<b class="bad">筋膜枪 X2</b> 只够卖 6 天，最晚下单日已经过了，建议补 400 件；<b>磁力积木</b> 11/21、<b>儿童水杯</b> 11/24 前要下单。${req.length} 个商品的补货申请赵六 15:40 核过报价，等决策层拍板。`,
+        `<div class="big"><small>补货申请 · 只算采购价</small><b>SAR ${fmt(total)}</b></div><a class="btn main" href="08-等你拍板.html">去看</a>`) + `
+      <section class="card"><div class="card-h"><h3>今天 15:06 的补货计划</h3><span class="t3 fs-12">${R.cover}</span><button class="btn sm ghost" id="how" style="margin-left:auto">怎么算的</button></div>
+        <div class="card-b tbl-wrap"><table class="tbl"><thead><tr><th>商品</th><th class="r">可售库存</th><th class="r">日销（近 7 天）</th><th class="r">在途</th><th>还能卖</th><th class="r">全周期</th><th>最晚下单日</th><th class="r">建议补</th><th class="r">采购金额</th><th>状态</th></tr></thead><tbody>
+        ${R.rows.map((r, i) => `<tr class="link ${r.qty == null ? 'na' : ''}" tabindex="0" data-i="${i}" ${location.hash === '#eval' && r.status === '补货评估' ? 'style="background:color-mix(in srgb,var(--ok) 8%,transparent)"' : ''}>
+          <td><b>${r.name}</b><span class="sub">${r.sku} · ${store(r.store).name}</span></td>
+          <td class="r num">${r.stock}</td><td class="r num">${r.d7}</td><td class="r num">${r.inbound || '—'}</td>
+          <td>${daysCell(r)}</td><td class="r num">${r.cycle ? r.cycle + ' 天' : '<span class="soon">缺</span>'}</td><td>${lastCell(r)}</td>
+          <td class="r num">${r.qty ? `<span class="qty">${r.qty}</span><span class="sub">${r.qty / r.carton} 箱 × ${r.carton}</span>` : '—'}</td>
+          <td class="r num">${r.qty ? fmt(r.qty * r.unit) : '—'}</td>
+          <td>${r.status === '建议补' ? st('建议补', 'wait') : r.status === '补货评估' ? st('补货评估', 'ok') : st('待核实', 'off')}${r.note ? `<span class="sub" title="${r.note}" style="max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.note}</span>` : ''}</td></tr>`).join('')}
+        </tbody></table></div></section>
+      <p class="hint section">快断货的商品当天写进日报；还能卖不到 7 天、又没赶上最晚下单日的，小巡走紧急通知。没货还在花钱的商品，小补会提醒小投先停广告。</p>`;
+    $('#how').onclick = how;
+    $$('tr[data-i]').forEach(r => r.onclick = r.onkeydown = e => { if (e.type === 'keydown' && e.key !== 'Enter') return; row(R.rows[+r.dataset.i]); });
+  }
+  function how(){
+    drawer({sub: '脚本 restock-plan', title: '怎么算的', body: `<div class="formula">
+      <b>还能卖几天</b> = 可售库存 ÷ 日销（近 7 天，参考 14、30 天看趋势）<br>
+      <b>计入的在途</b> = 状态「已确认」、预计可售日在全周期以内的批次；「不确定」「已取消」的不算<br>
+      <b>最晚下单日</b> = 库存加及时到的在途降到安全库存那天，往前推一个全周期；日期已过照实写「已过」<br>
+      <b>补多少</b> = 够卖到下一批到货再加安全库存，扣掉库存和计入的在途；向上取整箱，不低于起订量<br>
+      <b>采购金额</b> = 采购单价 × 件数（运费、头程不算在里面）</div>
+      <p class="hint" style="margin-top:12px">资料不全（缺采购价、起订量、全周期或安全库存）的商品不给数量，进「待核实」。小补只整理资料、写理由和消息草稿，数字都由脚本算。</p>`});
+  }
+  function row(r){
+    const S = store(r.store);
+    drawer({sub: `${r.sku} · ${S.name}`, title: r.name, body: `<dl class="fx">
+        <dt>可售库存</dt><dd class="num">${r.stock} 件（noon 接口，15:00）</dd>
+        <dt>日销</dt><dd class="num">近 7 天 ${r.d7} · 近 14 天 ${r.d14} · 近 30 天 ${r.d30}</dd>
+        <dt>计入的在途</dt><dd class="num">${r.inbound ? r.inbound + ' 件' : '没有'}</dd>
+        <dt>还能卖</dt><dd class="num">${r.days} 天</dd>
+        <dt>全周期</dt><dd class="num">${r.cycle ? r.cycle + ' 天' : '<span class="soon">商品库里没有</span>'}</dd>
+        <dt>安全库存</dt><dd class="num">${r.safety ?? '<span class="soon">商品库里没有</span>'}</dd>
+        <dt>起订量 / 每箱</dt><dd class="num">${r.moq ? `${r.moq} / ${r.carton}` : '<span class="soon">商品库里没有</span>'}</dd>
+        <dt>采购单价</dt><dd class="num">${r.unit ? 'SAR ' + r.unit : '<span class="soon">商品库里没有</span>'}</dd>
+        <dt>最晚下单日</dt><dd>${lastCell(r).replace('<span class="sub">', ' <span class="t3">')}</dd>
+        <dt>建议补</dt><dd class="num"><b>${r.qty ? `${r.qty} 件（${r.qty / r.carton} 箱）· SAR ${fmt(r.qty * r.unit)}` : '不给数量'}</b></dd></dl>
+      ${r.note ? `<div class="note" style="margin-top:var(--sp-4)">${r.note}</div>` : ''}`,
+      foot: `<span class="sp"></span>${r.status === '待核实' ? '<a class="btn main" href="05-小投工作台.html#prod">去商品库补资料</a>' : r.status === '建议补' ? '<a class="btn" href="08-等你拍板.html">在补货申请里，等决策层拍板</a>' : '<a class="btn" href="05b-小测工作台.html">看小测的测款结论</a>'}`});
+  }
+  function sched(){
+    $('#body').innerHTML = OS.schedTab('xiaobu', '小补排在小投后面：发现没货还在花钱的商品，要提醒小投先停广告。拉数据失败时小补会等着。');
+    OS.bindSched($('#body'));
+  }
+
+  function inbound(){
+    const K = {已确认: 'ok', 不确定: 'wait', 已取消: 'off'};
+    $('#body').innerHTML = `<section class="card"><div class="card-h"><h3>在途</h3><span class="t3 fs-12">已经下单、还没入仓可售的货，按批记。由赵六、张三维护</span><button class="btn sm main" id="add" style="margin-left:auto">${icon('plus', 14)}记一批</button></div>
+      <div class="card-b tbl-wrap"><table class="tbl"><thead><tr><th>采购单号</th><th>商品</th><th class="r">剩余未入库</th><th>预计可售日</th><th>状态</th><th>算补货时</th><th>更新</th></tr></thead><tbody>
+      ${R.inbound.map(b => `<tr><td class="mono">${b.po}</td><td><b>${b.name}</b><span class="sub">${store(b.store).name}</span></td><td class="r num">${b.left}</td>
+        <td class="num">${b.ready}</td><td>${st(b.status, K[b.status])}${b.note ? `<span class="sub">${b.note}</span>` : ''}</td>
+        <td class="fs-12 ${b.status === '已确认' ? '' : 't3'}">${b.status === '已确认' ? '计入' : '不计入'}</td><td class="t3 fs-12 nowrap">${b.by}</td></tr>`).join('')}
+      </tbody></table></div></section>
+      <p class="hint section">只有「已确认」、而且预计可售日在全周期以内的批次计入补货计算。补货申请批准、下了采购单后，记得在这里记一批，不然明天还会建议补。</p>`;
+    $('#add').onclick = () => { const d = drawer({sub: '在途', title: '记一批', body: `
+      <label class="field"><span>采购单号</span><input class="input mono" placeholder="PO-1120"></label>
+      <label class="field"><span>商品</span><select class="select"><option>筋膜枪 X2 · 云屿商店 · 沙特</option><option>儿童水杯 500ml · 云屿商店 · 沙特</option><option>磁力积木 64 片 · 星帆商店 · 阿联酋</option></select></label>
+      <label class="field"><span>剩余未入库件数</span><input class="input num" value="400"></label>
+      <label class="field"><span>预计可售日</span><input class="input num" value="12/14"><span class="hint">到 noon 仓库、能卖的那天，不是发货日</span></label>
+      <label class="field"><span>状态</span><select class="select"><option>已确认</option><option>不确定</option></select></label>`,
+      foot: '<span class="sp"></span><button class="btn main" id="sv">保存</button>'});
+      $('#sv').onclick = () => { d.close(); toast('已记下', '明天 15:06 的补货计划会算上这一批。'); }; };
+  }
+  function drafts(){
+    $('#body').innerHTML = `<div class="note" style="margin-bottom:var(--sp-4)">${icon('lock', 14)} 只出草稿，平台不发送。赵六确认后复制，自己用企业微信或邮件发。</div>
+      <div class="grid-d">${R.drafts.map((d, i) => `<section class="card draft"><div class="to"><b>${d.to}</b><span class="tag">${d.why}</span></div>
+        <textarea class="textarea" id="dt-${i}">${d.text}</textarea>
+        <div class="row" style="gap:var(--sp-2)"><span class="t3 fs-12">小补 15:06 写 · 可以直接改</span><span class="sp"></span><button class="btn sm" data-copy="${i}">复制</button></div></section>`).join('')}</div>`;
+    $$('[data-copy]').forEach(b => b.onclick = () => { const t = $('#dt-' + b.dataset.copy); t.select(); try { navigator.clipboard.writeText(t.value); } catch (e) {} toast('已复制', '去企业微信或邮件里粘贴，自己发。'); });
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>

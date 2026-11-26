@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 资源核心</title>
+<!-- P14 资源核心：公司层面的经营结果（销售、订单、广告花费、ROAS、广告带来的销售、广告占销售、客单价、各店对比）、AI 用量与费用、预算。不是中心。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  .chart{display:flex;align-items:flex-end;gap:6px;height:180px;padding:var(--sp-2) 0 0}
+  .chart div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:6px;height:100%;font-size:10px;color:var(--text-3)}
+  .chart i{width:100%;border-radius:4px 4px 2px 2px;background:linear-gradient(180deg,rgba(250,203,131,.9),rgba(213,138,65,.6));transform-origin:bottom;animation:grow var(--t-number) var(--ease) both;position:relative}
+  .chart i.today{background:linear-gradient(180deg,var(--brand-fill-hi),var(--brand))}
+  .chart i:hover::after{content:attr(data-v);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);padding:2px 6px;border-radius:6px;background:var(--surface-3);color:var(--text-1);font-size:11px;white-space:nowrap}
+  @keyframes grow{from{transform:scaleY(0)}}
+  .sec-t{display:flex;align-items:baseline;gap:var(--sp-3);margin:var(--sp-6) 0 var(--sp-3)} .sec-t h2{font-size:var(--fs-16)} .sec-t span{font-size:var(--fs-12);color:var(--text-3)}
+  .sec-t:first-child{margin-top:0}
+  .kpis.sm .kpi .v{font-size:var(--fs-20)}
+  .roas{display:flex;align-items:center;gap:8px;min-width:150px}
+  .roas .bar{position:relative;flex:1;height:6px;border-radius:3px;background:rgb(var(--rgb-tint) / .08)}
+  .roas .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--brand-fill-lo),var(--brand-fill-hi))}
+  .roas .bar i.low{background:var(--error)}
+  .roas .bar b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text-1);opacity:.7}
+  .budget{position:relative;height:10px;border-radius:5px;background:rgb(var(--rgb-tint) / .07);overflow:hidden;margin-top:10px}
+  .budget i{position:absolute;inset:0 auto 0 0;border-radius:5px;background:linear-gradient(90deg,var(--ok),#9CF2C6)}
+  @media (max-width:767px){ .chart div:nth-child(odd) span{visibility:hidden} }
+</style>
+</head>
+<body>
+<main class="main" id="page">
+  <section class="pagebar enter"><span class="pb-bg" style="background-image:url(img/hero-core.webp);background-position:75% 45%"></span>
+    <div class="pb-who"><span class="pb-ico">核</span><div><h1>资源核心</h1><div class="pb-sub"><span class="dot live"></span>公司层面的经营结果、AI 用量和费用、预算 · 数字来自店铺接口和 sub2api，17:00 同步</div></div></div>
+    <div class="pb-pills" id="pills"></div>
+    <div class="pb-r"><div class="seg" id="per" role="group" aria-label="时间范围"></div></div>
+  </section>
+  <div id="body"></div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, fmt, yuan, kpi, states, countUp} = OS;
+  OS.shell({active: 'core'}); OS.fullscreen();
+  let per = 'today';
+  const LAB = {today: '今天', week: '本周', month: '本月'};
+  function hbars(list, k){ const mx = Math.max(...list.map(x => x[1])); return list.map(([n, v]) => `<div class="hbar" style="--k:var(${k})"><span>${n}</span><span class="b"><i style="width:${v / mx * 100}%"></i></span><b class="num">${yuan(v)}</b></div>`).join(''); }
+  function render(state = '正常'){
+    $('#per').innerHTML = Object.keys(LAB).map(k => `<button class="${k === per ? 'on' : ''}" data-p="${k}">${LAB[k]}</button>`).join('');
+    $$('#per button').forEach(b => b.onclick = () => { per = b.dataset.p; render(state); });
+    const B = $('#body'), U = D.usage[per], K = D.kpi[per];
+    if (state === '加载中') return B.innerHTML = `<div class="kpis">${'<div class="skel" style="height:104px"></div>'.repeat(4)}</div><div class="skel section" style="height:240px"></div>`;
+    if (state === '出错') return B.innerHTML = states.error({what: '用量没同步上', why: 'sub2api 17:00 那次同步失败，下面是 16:00 的数', next: '<button class="btn sm">重新同步</button>'});
+    if (state === '没有数据') return B.innerHTML = `<div class="card">${states.empty({img: 'empty-task.webp', title: '还没有用量数据', text: '接上 sub2api 后，每小时同步一次平台 AI 员工和成员的用量。', act: '<a class="btn main" href="16-管理后台.html#api">去对接</a>'})}</div>`;
+    const days = D.usage.trend, BE = D.breakEven;
+    const adSales = K.spend * K.roas, tacos = K.spend / K.sales * 100, aov = K.sales / K.orders;
+    const pct = r => Math.min(100, r / 5 * 100);
+    $('#pills').innerHTML = `<span class="pill">${K.range}</span><span class="pill">ROAS <b>${K.roas.toFixed(2)}</b> / 保本 ${BE.toFixed(2)}</span><span class="pill">AI 费用 <b>¥${fmt(U.total, 2)}</b></span>`;
+    B.innerHTML = `<div class="sec-t"><h2>经营</h2><span>${K.range} · 3 家店 · 4 个站点 · 金额是沙特三站（SAR），阿联酋站 AED 另算、不相加 · ${K.cmp}</span></div>
+    <div class="kpis">
+      ${kpi({l: '销售额 · 沙特三站', v: fmt(K.sales), pre: 'SAR', d: `${K.cmp} <span class="up">${K.salesD}</span> · 阿联酋 AED ${fmt(K.aed.sales)}`})}
+      ${kpi({l: '订单', v: fmt(K.orders), d: `客单价 SAR ${aov.toFixed(1)}`})}
+      ${kpi({l: '广告花费 · 沙特三站', v: fmt(K.spend), pre: 'SAR', d: `${K.cmp} ${K.spendD} · 阿联酋 AED ${fmt(K.aed.spend)}`})}
+      ${kpi({l: `投产比 ROAS · 保本 ${BE.toFixed(2)}`, v: K.roas.toFixed(2), sp: K.spark})}
+    </div>
+    <div class="kpis sm section">
+      ${kpi({l: '广告带来的销售', v: fmt(Math.round(adSales)), pre: 'SAR', d: `占销售额 ${(adSales / K.sales * 100).toFixed(0)}%`})}
+      ${kpi({l: '广告占销售（TACOS）', v: tacos.toFixed(1) + '%', d: '越低越好；花费 ÷ 总销售额'})}
+      ${kpi({l: '高于保本', v: '+' + (K.roas - BE).toFixed(2), d: `ROAS ${K.roas.toFixed(2)} − 保本 ${BE.toFixed(2)}`})}
+      <a class="kpi warn" href="08-等你拍板.html" style="display:block"><div class="l">等拍板</div><div class="v num">${D.approvals.pending.length}<small style="margin-left:6px">件</small></div><div class="d">补货申请 SAR 9,800 · 测款 1 · 广告 4 条</div></a>
+    </div>
+    <section class="card section"><div class="card-h"><h3>各店铺</h3><span class="more">本周 · 白线是保本 ROAS</span></div>
+      <div class="card-b tbl-wrap"><table class="tbl"><thead><tr><th>店铺</th><th class="r">销售</th><th class="r">广告花费</th><th>ROAS</th><th class="r">广告占销售</th><th>负责</th></tr></thead><tbody>
+      ${D.stores.map(st => { const W = st.week; return `<tr><td><b>${st.name}</b><span class="sub">${OS.st(st.flag[0], st.flag[1])}</span></td><td class="r num"><small class="t3">${st.cur}</small> ${fmt(W.sales)}<span class="sub up">${W.salesD}</span></td><td class="r num"><small class="t3">${st.cur}</small> ${fmt(W.spend)}</td>
+        <td><div class="roas"><span class="num">${W.roas.toFixed(2)}</span><div class="bar"><i class="${W.roas < BE ? 'low' : ''}" style="width:${pct(W.roas)}%"></i><b style="left:${pct(BE)}%"></b></div></div></td>
+        <td class="r num">${(W.spend / W.sales * 100).toFixed(1)}%</td><td>${OS.member(st.owner).name}</td></tr>`; }).join('')}
+      </tbody></table></div></section>
+
+    <div class="sec-t"><h2>AI 用量和费用</h2><span>${D.usage.source}</span></div>
+    <div class="kpis">
+      ${kpi({l: `${LAB[per]} AI 费用`, v: fmt(U.total, 2), pre: '¥', d: `平台 AI 员工 ¥${fmt(U.platform, 2)} · 成员 ¥${fmt(U.members, 2)}`})}
+      ${kpi({l: 'AI 费用占销售', v: (U.total / (K.sales * 1.92) * 100).toFixed(2) + '%', d: '按 1 SAR ≈ ¥1.92 折算'})}
+      ${kpi({l: '每 ¥1 AI 费用对应销售', v: fmt(Math.round(K.sales / U.total)), pre: 'SAR', d: '只是参考，销售不全是 AI 带来的'})}
+      <div class="kpi"><div class="l">本月预算剩余</div><div class="v num"><small>¥</small>${fmt(D.usage.budget.left)}<small style="margin-left:6px">/ ¥${D.usage.budget.month}</small></div><div class="budget"><i style="width:${D.usage.budget.pct}%"></i></div></div>
+    </div>
+    <section class="card pad section"><div class="row"><h3>本月每天的 AI 费用</h3><span class="sp"></span><span class="t3 fs-12">悬停看金额 · 金色高亮是今天</span></div>
+      <div class="chart">${days.map((v, i) => `<div><i class="${i === days.length - 1 ? 'today' : ''}" data-v="${i + 1} 日 ¥${v.toFixed(2)}" style="height:${v / Math.max(...days) * 100}%;animation-delay:${i * .02}s"></i><span>${i + 1}</span></div>`).join('')}</div></section>
+    <div class="grid g3 section">
+      <section class="card pad"><h3 style="margin-bottom:8px">按成员</h3>${hbars(D.usage.byMember, '--brand')}<p class="hint" style="margin-top:8px">只看用量，不排名；看人以产出为准。</p></section>
+      <section class="card pad"><h3 style="margin-bottom:8px">按 AI 员工</h3>${hbars(D.usage.byAI, '--ok')}</section>
+      <section class="card pad"><h3 style="margin-bottom:8px">按模型</h3>${hbars(D.usage.byModel, '--sug-down')}</section>
+    </div>`;
+    countUp(B);
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>

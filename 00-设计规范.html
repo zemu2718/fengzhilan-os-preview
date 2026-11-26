@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 设计规范</title>
+<!-- 设计规范样张：颜色、字号、间距直接从 assets/tokens.css 读出来显示，改了变量这页跟着变。组件用的就是各页面在用的 class。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  .sec{margin-bottom:var(--sp-7)}
+  .sec > h2{font-size:var(--fs-20);margin-bottom:4px}
+  .sec > p{font-size:var(--fs-13);color:var(--text-3);margin-bottom:var(--sp-4)}
+  .sw{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:var(--sp-3)}
+  .sw div{border-radius:var(--r-card);overflow:hidden;border:1px solid var(--divider);background:var(--surface-1)}
+  .sw i{display:block;height:56px;background:var(--c)}
+  .sw span{display:block;padding:8px 10px;font-size:var(--fs-12)} .sw small{display:block;color:var(--text-3);font-family:var(--font-mono);font-size:var(--fs-11)}
+  .ty{display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px var(--sp-4);align-items:baseline}
+  .ty code{font-size:var(--fs-12);color:var(--text-3)}
+  .spc{display:flex;align-items:flex-end;gap:var(--sp-4);flex-wrap:wrap}
+  .spc div{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:var(--fs-11);color:var(--text-3)}
+  .spc i{display:block;background:var(--brand);border-radius:2px;width:var(--s);height:var(--s)}
+  .demo-row{display:flex;flex-wrap:wrap;gap:var(--sp-3);align-items:center}
+  .avs{display:flex;gap:var(--sp-4);flex-wrap:wrap}
+  .avs figure{margin:0;text-align:center;font-size:var(--fs-12);color:var(--text-2)}
+  .avs img{width:96px;height:96px;object-fit:contain;display:block;margin:0 auto 4px}
+  .rules li{margin:6px 0;color:var(--text-2);line-height:var(--lh-loose)}
+</style>
+</head>
+<body>
+<main class="main" id="page">
+  <div class="page-h"><div><h1>设计规范</h1><div class="sub">深色、浅色两套（默认深色，头像菜单切换）；颜色、字号、间距只从 assets/tokens.css 取。这一页直接读变量，改了变量这页跟着变</div></div></div>
+
+  <section class="sec"><h2>颜色</h2><p>底色、文字、品牌金、状态色、建议类型色。状态色只用来表示状态，不当装饰。</p><div id="colors"></div></section>
+
+  <section class="sec"><h2>字号</h2><p>界面用系统字体（苹方 / HarmonyOS Sans）；只有大标题、品牌字用衬线；数字用等宽数字。</p><div class="card pad ty" id="type"></div></section>
+
+  <section class="sec"><h2>间距和圆角</h2><p>间距 4 的倍数；按钮、卡片、弹层三档圆角。</p><div class="card pad"><div class="spc" id="space"></div></div></section>
+
+  <section class="sec"><h2>按钮</h2><p>一屏只有一个主按钮（金色）；危险操作用红色描边；手机上可点区域不小于 44px。</p>
+    <div class="card pad demo-row"><button class="btn main">批准 4 条</button><button class="btn">逐条看</button><button class="btn ghost">取消</button><button class="btn danger">退回</button><button class="btn sm">小按钮</button><button class="btn main" disabled>不可用</button></div></section>
+
+  <section class="sec"><h2>状态和标签</h2><p>状态文字固定用术语表里的说法。</p>
+    <div class="card pad demo-row" id="sts"></div></section>
+
+  <section class="sec"><h2>数字卡</h2><p>最常看的一块：大数字 + 比较 + 走势。</p><div class="kpis" id="kpis"></div></section>
+
+  <section class="sec"><h2>表单</h2><div class="card pad" style="max-width:520px">
+    <div class="field"><label>商品</label><select class="select"><option>H039-2 水杯 500ml</option></select></div>
+    <div class="field"><label>留给利润</label><input class="input num" value="25%"><span class="hint">清货只求卖掉时填 0</span></div>
+    <div class="field"><label>退回原因</label><textarea class="textarea" placeholder="写一句原因，提交人会收到"></textarea></div>
+    <div class="row" style="gap:10px"><button class="switch on" role="switch" aria-checked="true" aria-label="每小时巡查"></button><span class="fs-13 t2">每小时巡查</span></div></div></section>
+
+  <section class="sec"><h2>表格</h2><div class="card tbl-wrap"><table class="tbl"><thead><tr><th>任务</th><th>状态</th><th class="r">花费</th><th>时间</th></tr></thead><tbody>
+    <tr class="link"><td><b>广告复盘</b> · 云屿商店 · 沙特<span class="sub">14 条：直批 8 · 等决策层 4</span></td><td id="t1"></td><td class="r num">SAR 362</td><td class="t3">今天 15:05</td></tr>
+    <tr class="link"><td><b>补货计划</b> · 云屿商店 · 沙特<span class="sub">补货申请 3 个商品</span></td><td id="t2"></td><td class="r num">SAR 9,800</td><td class="t3">今天 15:06</td></tr></tbody></table></div></section>
+
+  <section class="sec"><h2>反馈</h2><p>轻提示 3 秒消失；确认弹窗用于花钱、改线上、撤回；抽屉看详情。</p>
+    <div class="card pad demo-row"><button class="btn" id="b-toast">轻提示</button><button class="btn" id="b-confirm">确认弹窗</button><button class="btn" id="b-drawer">抽屉</button></div>
+    <div class="grid g3 section" id="st3"></div></section>
+
+  <section class="sec"><h2>AI 员工头像</h2><p>同一家人：白色大理石 + 金边 + 朱红围巾，透明底。没上线的灰色显示。</p><div class="card pad avs" id="avs"></div></section>
+
+  <section class="sec"><h2>几条规矩</h2><ul class="rules">
+    <li>颜色、字号、间距只从变量取，不在页面里写死；图片里不放文字。</li>
+    <li>文案用大白话；正文叫「AI 员工」，具体写名字；新词先进术语表。</li>
+    <li>每个页面都有四种状态：正常、加载中、没有数据、出错。出错要说清楚是什么没拿到、为什么、下一步做什么。</li>
+    <li>改线上、花钱的按钮旁边写清楚「交给谁」「能不能撤回」。</li>
+    <li>动效只用来说明变化（数字滚动、状态切换、事情被交出去）；系统设了「减少动态效果」时全部关掉。</li>
+  </ul></section>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, st, taskSt, kpi, toast, confirm, drawer, states, img, countUp} = OS;
+  OS.shell({active: ''});
+  const css = getComputedStyle(document.documentElement), v = n => css.getPropertyValue(n).trim();
+  const G = [['底色和面', ['--bg-0', '--surface-1', '--surface-2', '--surface-3', '--border', '--divider']], ['文字', ['--text-1', '--text-2', '--text-3']],
+    ['品牌', ['--brand', '--brand-hi', '--brand-lo', '--accent', '--accent-text']], ['状态', ['--ok', '--wait', '--error', '--off']],
+    ['建议类型', ['--sug-up', '--sug-down', '--sug-stop', '--sug-neg', '--sug-fix']], ['中心', ['--dept-commerce', '--dept-media', '--dept-web']]];
+  $('#colors').innerHTML = G.map(([t, l]) => `<h3 class="fs-13 t2" style="margin:var(--sp-4) 0 var(--sp-2)">${t}</h3><div class="sw">${l.map(n => `<div><i style="--c:var(${n})"></i><span>${n}<small>${v(n)}</small></span></div>`).join('')}</div>`).join('');
+  $('#type').innerHTML = ['--fs-32', '--fs-24', '--fs-20', '--fs-16', '--fs-14', '--fs-13', '--fs-12', '--fs-11'].map(n => `<code>${n} · ${v(n)}</code><div style="font-size:var(${n})">沙特本周 ROAS 3.20，补货申请等你拍板</div>`).join('')
+    + `<code>--fs-num-40 · 数字</code><div class="num" style="font-size:var(--fs-num-40);font-weight:600">41,350</div>`;
+  $('#space').innerHTML = [1, 2, 3, 4, 5, 6, 7].map(i => `<div><i style="--s:var(--sp-${i})"></i>--sp-${i}<br>${v('--sp-' + i)}</div>`).join('')
+    + ['--r-btn', '--r-card', '--r-pop'].map(n => `<div><i style="--s:48px;border-radius:var(${n});background:var(--surface-3);border:1px solid var(--border-strong)"></i>${n}<br>${v(n)}</div>`).join('');
+  $('#sts').innerHTML = [st('在岗', 'run'), st('已生效', 'ok'), st('待拍板', 'wait'), st('失败', 'err'), st('未接入', 'off'), taskSt('执行中'), taskSt('已撤回'), '<span class="tag">广告复盘</span>', '<span class="tag" style="--k:var(--error)">补货申请</span>'].join('');
+  $('#kpis').innerHTML = kpi({l: '本周销售额', v: '41,350', pre: 'SAR', d: '较上周 <span class="up">+7.8%</span>'}) + kpi({l: '投产比 ROAS · 保本 2.40', v: '3.20', sp: D.kpi.week.spark}) + kpi({l: 'AI 费用', v: '32.40', pre: '¥', d: '平台 ¥5.10 · 成员 ¥27.30'});
+  countUp($('#kpis'));
+  $('#t1').innerHTML = taskSt('待拍板'); $('#t2').innerHTML = taskSt('待拍板');
+  $('#avs').innerHTML = D.ai.map(a => `<figure><img src="${img(a.img)}" alt="" style="${a.status === 'on' ? '' : 'filter:grayscale(1) brightness(.75);opacity:.7'}">${a.name}</figure>`).join('');
+  $('#st3').innerHTML = `<div class="card">${states.empty({img: 'empty-approval.webp', title: '没有数据', text: '说清楚为什么空、下一步做什么。'})}</div><div class="card pad">${states.loading(3)}</div><div class="card pad">${states.error({what: '出错', why: 'noon 接口超时'})}</div>`;
+  $('#b-toast').onclick = () => toast('已批准', '交给小投，开始通过 noon 接口执行。');
+  $('#b-confirm').onclick = () => confirm({title: '批准「补货申请 · 3 个商品」？', msg: '采购金额 SAR 9,800，交给赵六下采购单。', ok: '批准'});
+  $('#b-drawer').onclick = () => drawer({sub: 'H061 · 云屿商店 · 沙特', title: '筋膜枪 X2', body: '<p class="t2">抽屉从右边滑出，看详情不离开当前页。</p>'});
+</script>
+</body>
+</html>

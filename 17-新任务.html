@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 新任务</title>
+<!-- P17 新任务（2026-11-20）：人主动叫 AI 员工干活的入口。和定时巡检用同一批 AI 员工、同一套技能。
+     规矩：只读的问题直接回答；要改线上、要花钱的，生成建议后照样走初审和拍板，对话里不能绕过拍板。每次都记进任务和用量。
+     可以接着说（多轮对话）；复杂的事小巡会拆开交给几位 AI 员工。网址带 ?q=… 会把话填进输入框。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  main.main{max-width:980px}
+  .hero{text-align:center;margin:var(--sp-6) 0 var(--sp-5)}
+  .hero h1{font-family:var(--font-serif);font-size:var(--fs-32);letter-spacing:.04em}
+  .hero p{color:var(--text-2);margin-top:var(--sp-2)}
+  .box{position:relative;border-radius:20px;background:var(--surface-1);border:1px solid var(--border);box-shadow:var(--shadow-card);padding:var(--sp-4) var(--sp-4) var(--sp-3);transition:border-color var(--t-hover),box-shadow var(--t-hover)}
+  .box:focus-within{border-color:rgba(242,181,68,.45);box-shadow:0 0 0 4px rgba(242,181,68,.08),var(--shadow-card)}
+  .box textarea{all:unset;box-sizing:border-box;display:block;width:100%;min-height:84px;font-size:var(--fs-16);line-height:var(--lh);color:var(--text-1);white-space:pre-wrap}
+  .box textarea::placeholder{color:var(--text-3)}
+  .box .bar{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap;margin-top:var(--sp-2)}
+  .chip{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:10px;background:var(--surface-2);color:var(--text-2);font-size:var(--fs-13)}
+  .chip:hover{background:var(--surface-3);color:var(--text-1)}
+  .chip img{width:22px;height:22px;object-fit:contain}
+  .send{all:unset;cursor:pointer;margin-left:auto;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--brand-fill-hi),var(--brand-fill-lo));color:var(--text-on-brand);box-shadow:0 6px 18px rgba(242,181,68,.3)}
+  .send[disabled]{opacity:.35;pointer-events:none}
+  .pick{position:absolute;z-index:5;margin-top:6px;min-width:260px;padding:6px;border-radius:var(--r-pop);background:var(--surface-2);border:1px solid var(--border);box-shadow:var(--shadow-pop)}
+  .pick button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:10px;font-size:var(--fs-13)}
+  .pick button:hover,.pick button.on{background:var(--surface-3)}
+  .pick img{width:28px;height:28px;object-fit:contain} .pick small{display:block;color:var(--text-3);font-size:var(--fs-12)}
+  .rule{display:flex;align-items:center;gap:6px;justify-content:center;font-size:var(--fs-12);color:var(--text-3);margin-top:var(--sp-3)}
+  .crew{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--sp-3);margin-top:var(--sp-6)}
+  .who{padding:var(--sp-4);border-radius:var(--r-card);background:var(--surface-1);border:1px solid var(--divider)}
+  .who .t{display:flex;align-items:center;gap:10px;margin-bottom:var(--sp-3)}
+  .who .t img{width:44px;height:44px;object-fit:contain}
+  .who .t b{display:block} .who .t span{font-size:var(--fs-12);color:var(--text-3)}
+  .who .q{all:unset;box-sizing:border-box;cursor:pointer;display:block;width:100%;padding:8px 10px;margin-top:6px;border-radius:9px;background:var(--surface-2);font-size:var(--fs-12);color:var(--text-2);line-height:1.5}
+  .who .q:hover{background:var(--surface-3);color:var(--text-1)}
+  .recent{margin-top:var(--sp-6)}
+  /* 对话 */
+  .thread{display:flex;flex-direction:column;gap:var(--sp-4);margin:var(--sp-4) 0 var(--sp-5)}
+  .msg{display:flex;gap:var(--sp-3);align-items:flex-start;animation:enter var(--t-enter) var(--ease) both}
+  .msg .av{width:36px;height:36px;flex-shrink:0;display:grid;place-items:center}
+  .msg .av img{width:36px;height:36px;object-fit:contain}
+  .msg .b{min-width:0;max-width:720px;padding:var(--sp-3) var(--sp-4);border-radius:16px;background:var(--surface-1);border:1px solid var(--divider);line-height:var(--lh-loose);font-size:var(--fs-14)}
+  .msg .b .from{font-size:var(--fs-12);color:var(--text-3);margin-bottom:4px}
+  .msg.mine{flex-direction:row-reverse}
+  .msg.mine .b{background:color-mix(in srgb,var(--brand) 12%,var(--surface-1));border-color:rgba(242,181,68,.25)}
+  .msg .meta{display:flex;gap:var(--sp-3);flex-wrap:wrap;margin-top:8px;font-size:var(--fs-12);color:var(--text-3)}
+  .msg .acts{display:flex;gap:var(--sp-2);margin-top:var(--sp-3);flex-wrap:wrap}
+  .msg .route{font-size:var(--fs-13);color:var(--text-2)}
+  .typing{display:inline-flex;gap:4px} .typing i{width:6px;height:6px;border-radius:50%;background:var(--text-3);animation:pulse 1s infinite} .typing i:nth-child(2){animation-delay:var(--t-hover)} .typing i:nth-child(3){animation-delay:var(--t-enter)}
+  .mini{width:100%;border-collapse:collapse;margin-top:8px;font-size:var(--fs-13)}
+  .mini td{padding:6px 8px;border-top:1px solid var(--divider)} .mini td.r{text-align:right;font-variant-numeric:tabular-nums}
+  @media (max-width:1023px){ .crew{grid-template-columns:1fr 1fr} }
+  @media (max-width:767px){ .crew{grid-template-columns:minmax(0,1fr)} .hero h1{font-size:var(--fs-24)} }
+</style>
+</head>
+<body>
+<main class="main" id="page">
+  <div id="home">
+    <div class="hero enter"><h1>要 AI 员工做什么？</h1><p>说一句话，交给对的 AI 员工。要改线上、要花钱的，照样先拍板。</p></div>
+    <div id="boxHome"></div>
+    <section class="crew" id="crew" aria-label="能交给谁"></section>
+    <section class="card recent"><div class="card-h"><h3>最近的新任务</h3><a class="more" href="10-任务.html">全部任务</a></div><div class="card-b" id="recent"></div></section>
+  </div>
+  <div id="chat" hidden>
+    <div class="crumb"><a href="17-新任务.html">新任务</a> / <span id="cTitle"></span></div>
+    <div class="thread" id="thread"></div>
+    <div id="boxChat"></div>
+  </div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, q, icon, ai, img, toast, states} = OS;
+  OS.shell({active: 'new'});
+  const ON = D.ai.filter(a => a.status === 'on');
+  const AUTO = {id: 'auto', name: '小巡帮你分', img: 'avatar-xiaoxun.webp', desc: '不确定交给谁，小巡看完分给对的 AI 员工'};
+  // 每位 AI 员工能接的事（首期就是它们的场景）
+  const ASK = {
+    xiaoxun: ['星帆商店 阿联酋站 ROAS 为什么一直往下走？', '今天有哪些事还没人跟进？'],
+    xiaotou: ['把 water bottle 出价降到 0.60', '新品 H098 上广告，保本 ROAS 和最高点击价多少？'],
+    xiaoce: ['折叠水杯现在离本轮标准还差多少？', '给 H098 双层饭盒定一个测款计划'],
+    xiaobu: ['筋膜枪 X2 如果下周才下单，会断货几天？', '给货代写一条催 PO-1112 的消息草稿'],
+    xiaodao: ['我是新人，先学什么？', '自动广告和手动广告怎么搭？'],
+    xiaoxuan: ['这个 1688 链接的品在沙特能不能赚？', '吸管杯清货要降到多少？'],
+    xiaojia: ['帮 H039-2 水杯写一版阿语标题和卖点', '这条 listing 上架前还缺什么？'],
+  };
+  let to = AUTO;
+  const route = t => /新人|先学|怎么搭|找谁|什么意思/.test(t) ? 'xiaodao' : /能不能赚|利润|保本价|清货|选品|1688/.test(t) ? 'xiaoxuan' : /listing|标题|卖点|上架|商品图|A\+/.test(t) ? 'xiaojia' : /补货|断货|在途|货代|工厂|PO-/.test(t) ? 'xiaobu' : /测款|本轮标准|测一轮/.test(t) ? 'xiaoce' : /出价|广告|保本|点击|ROAS 和|否定|预算/.test(t) && !/为什么/.test(t) ? 'xiaotou' : 'xiaoxun';
+
+  function box(where, ph){
+    $(where).innerHTML = `<div class="box"><label class="sr-only" for="ta-${where.slice(1)}">要做的事</label>
+      <textarea id="ta-${where.slice(1)}" placeholder="${ph}"></textarea>
+      <div class="bar"><button class="chip" title="上传后台导出的文件、图片">${icon('plus', 15)}附件</button>
+        <button class="chip" data-pick>${'<img src="' + img(to.img) + '" alt="">'}交给 ${to.name} ${icon('chev', 13)}</button>
+        <button class="send" aria-label="发送" disabled>${icon('arrow', 18)}</button></div><div class="pick" hidden></div></div>
+      <div class="rule">${icon('lock', 12)}只读的问题直接回答；要改线上、要花钱的，生成建议后照样走初审和拍板</div>`;
+    const ta = $('textarea', $(where)), send = $('.send', $(where)), pk = $('.pick', $(where));
+    ta.oninput = () => { send.disabled = !ta.value.trim(); };
+    ta.onkeydown = e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && ta.value.trim()) go(ta.value.trim()); };
+    send.onclick = () => go(ta.value.trim());
+    $('[data-pick]', $(where)).onclick = () => {
+      pk.hidden = !pk.hidden;
+      pk.innerHTML = [AUTO, ...ON].map(a => `<button data-id="${a.id}" class="${a.id === to.id ? 'on' : ''}"><img src="${img(a.img)}" alt=""><span>${a.name}<small>${a.desc ? (a.id === 'auto' ? a.desc : a.role + ' · ' + a.scenes.join('、')) : ''}</small></span></button>`).join('');
+      $$('button', pk).forEach(b => b.onclick = () => { to = b.dataset.id === 'auto' ? AUTO : ai(b.dataset.id); box(where, ph); $('textarea', $(where)).value = ta.value; $('textarea', $(where)).oninput(); });
+    };
+    return ta;
+  }
+  function home(state = '正常'){
+    $('#home').hidden = false; $('#chat').hidden = true;
+    const ta = box('#boxHome', '例如：把 water bottle 出价降到 0.60；或者问：星帆商店 阿联酋站 ROAS 为什么一直往下走？');
+    if (q.get('q')) { ta.value = q.get('q'); ta.oninput(); }
+    $('#crew').innerHTML = ON.map(a => `<div class="who"><div class="t"><img src="${img(a.img)}" alt=""><div><b>${a.name}</b><span>${a.role}</span></div></div>
+      ${(ASK[a.id] || []).map(t => `<button class="q" data-q="${t}" data-to="${a.id}">${t}</button>`).join('')}</div>`).join('');
+    $$('.who .q').forEach(b => b.onclick = () => { to = ai(b.dataset.to); const t = box('#boxHome', ''); t.value = b.dataset.q; t.oninput(); t.focus(); });
+    const R = $('#recent');
+    if (state === '加载中') return R.innerHTML = states.loading(3);
+    if (state === '出错') return R.innerHTML = states.error({what: '最近的新任务没加载出来', why: '服务器暂时连不上'});
+    if (state === '没有数据') return R.innerHTML = states.empty({img: 'empty-task.webp', title: '还没发过新任务', text: '上面打一句话，或者点 AI 员工下面的例子。'});
+    R.innerHTML = `<div class="list">${[['筋膜枪 X2 如果下周才下单，会断货几天？', 'xiaobu', '张三 · 今天 16:40', '已回答'], ['新品 H098 上广告，保本 ROAS 和最高点击价多少？', 'xiaotou', '张三 · 昨天 17:20', '已回答'], ['星帆商店 阿联酋否定 cable 这个词', 'xiaotou', '李四 · 11/18', '已拍板 · 已生效']]
+      .map(([t, id, w, s]) => `<div class="li"><span class="ava sm"><img src="${img(ai(id).img)}" alt=""></span><div class="m"><b>${t}</b><div class="s">${ai(id).name} · ${w}</div></div><span class="st ${s.startsWith('已拍板') ? 'ok' : 'off'}">${s}</span></div>`).join('')}</div>`;
+  }
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  function add(who, html, cls = ''){
+    const A = who === 'me' ? null : ai(who);
+    const el = document.createElement('div'); el.className = 'msg ' + (who === 'me' ? 'mine' : '') + ' ' + cls;
+    el.innerHTML = `<div class="av">${A ? `<img src="${img(A.img)}" alt="">` : `<span class="mf">${OS.who.id === 'boss' ? icon('user', 16) : OS.who.name[0]}</span>`}</div><div class="b">${A ? `<div class="from">${A.name}</div>` : ''}${html}</div>`;
+    $('#thread').append(el); el.scrollIntoView({block: 'end', behavior: 'smooth'}); return el;
+  }
+  async function go(t){
+    $('#home').hidden = true; $('#chat').hidden = false; $('#cTitle').textContent = t.length > 24 ? t.slice(0, 24) + '…' : t;
+    box('#boxChat', '接着说…');
+    add('me', t);
+    const id = to.id === 'auto' ? route(t) : to.id;
+    if (to.id === 'auto' && id !== 'xiaoxun') { await wait(500); add('xiaoxun', `<span class="route">这是${ai(id).role}的事，交给${ai(id).name}。</span>`); }
+    await wait(400);
+    const w = add(id, '<span class="typing"><i></i><i></i><i></i></span>');
+    await wait(1200);
+    $('.b', w).innerHTML = `<div class="from">${ai(id).name}</div>` + answer(id, t);
+    $$('[data-x]', w).forEach(b => b.onclick = () => toast(b.dataset.x, b.dataset.m || ''));
+  }
+  function answer(id, t){
+    const meta = (m, c, ro = true) => `<div class="meta"><span>${m}</span><span>${c}</span><span>${ro ? '只读，没改任何东西' : '还没改线上，等拍板'}</span></div>`;
+    if (id === 'xiaotou' && /出价|降到|加到/.test(t)) return `water bottle 现在出价 <b>0.85</b>，降到 0.60 是 <b>-29%</b>。超过运营权限（单条 10%），但没超过 AI 员工单次上限（30%），所以要拍板。
+      <table class="mini"><tr><td>近 7 天</td><td class="r">花费 SAR 310 · 4 单 · ROAS 0.80</td></tr><tr><td>保本 ROAS</td><td class="r">2.40</td></tr><tr><td>按保本算的最高出价</td><td class="r">0.62</td></tr></table>
+      我已经写成一条建议：降到 0.60，交给拍板人（决策层）。批准后我通过 noon 接口改，能撤回。
+      <div class="acts"><a class="btn main sm" href="08-等你拍板.html">去等你拍板</a><button class="btn sm" data-x="已改成 0.62" data-m="按保本最高出价重写了建议。">改成按保本算（0.62）</button></div>${meta('gpt-6', '¥0.03', false)}`;
+    if (id === 'xiaotou') return `按商品库：售价 SAR 34、单件毛利 13.6，<b>保本 ROAS 2.50</b>；留 25% 利润的目标 ROAS 3.33。按转化率 8% 算，<b>最高点击价 SAR 0.82</b>。<div class="acts"><button class="btn sm" data-x="已存进商品库" data-m="H098 的保本 ROAS 2.50，下次复盘自动使用。">存进商品库</button></div>${meta('只跑脚本', '不花钱')}`;
+    if (id === 'xiaobu') return /消息|草稿/.test(t) ? `草稿写好了，<b>只出草稿，不发送</b>：<div class="note" style="margin-top:8px">李总好，PO-1112 那批 H021 保温杯 300 件，工厂说可能延到 12/10 出货，麻烦帮看下 12 月中旬能否赶上利雅得 FBN 入仓，最晚哪天交到你们仓库？</div><div class="acts"><button class="btn sm" data-x="已复制" data-m="去企业微信里粘贴，自己发。">复制</button></div>${meta('gpt-6', '¥0.02')}`
+      : `筋膜枪 X2 现在 132 件、日销 22，<b>11/25 卖完</b>。全周期 25 天，下周一（11/24）下单的话 <b>12/19 才能到货可售</b>，中间断货约 <b>24 天</b>。补货申请已经在等拍板，越早批越好。<div class="acts"><a class="btn sm" href="05c-小补工作台.html">看补货计划</a></div>${meta('只跑脚本', '不花钱')}`;
+    if (id === 'xiaoce') return /计划/.test(t) ? `给 H098 双层饭盒的测款计划草稿：观察 14 天、至少 30 单、利润率 ≥18%、退货率 ≤5%、预算 SAR 600。<b>要主管确认后才算本轮标准</b>。<div class="acts"><a class="btn main sm" href="05b-小测工作台.html#plan">去提交主管确认</a></div>${meta('gpt-6', '¥0.02', false)}`
+      : `折叠水杯第 1 轮：7 天 12 单、利润率 20%、退货 0。离本轮标准（14 天 30 单）还差 7 天、18 单。现在的结论是<b>「继续观察，暂不判定」</b>，11/26 再复盘。${meta('只跑脚本', '不花钱')}`;
+    if (id === 'xiaodao') return /新人|先学/.test(t) ? `欢迎！新人上手 noon 一共 5 步，第一步先认识后台和三家店：云屿商店（沙特）、星帆商店（阿联酋、沙特）、月砂商店（沙特），各看一遍前台店铺页，说出它们各卖什么。做完说「做完第 1 步了」，我带你往下走。<div class="acts"><a class="btn main sm" href="05f-小导工作台.html#onboard">看 5 步路线</a></div>${meta('gpt-6-mini', '¥0.01')}`
+      : `新品先开<b>自动广告</b>跑 7 天，让 noon 帮你找词；出单的搜索词挑出来开<b>手动广告</b>精准投，同时在自动里精确否定，避免两边抢。<div class="note" style="margin-top:8px">来源：团队规则 · 广告结构</div>${meta('gpt-6-mini', '¥0.01')}`;
+    if (id === 'xiaoxuan') return /清货/.test(t) ? `吸管杯 H052 库存 60 件、日销 0.6。建议先降到保本 <b>SAR 22</b>，预计 40 天卖完，赶在第 60 天收长期仓储费之前。改价要拍板。<div class="acts"><a class="btn sm" href="05e-小选工作台.html#clear">看清货方案</a></div>${meta('只跑脚本', '不花钱')}`
+      : `发链接过来，我读供货页的采购价、尺寸、重量，按 noon 沙特 FBN 的佣金和配送费算：毛估利润、保本价、建议售价。估的数（重量、头程）会单独标出来。<div class="acts"><a class="btn sm" href="05e-小选工作台.html">打开小选工作台</a></div>${meta('只跑脚本', '不花钱')}`;
+    if (id === 'xiaojia') return /上架|缺什么/.test(t) ? `H039-2 水杯上架前检查 7/8：还差「容量」变体的阿语值（500 مل）。补上就能提交拍板，批准后通过 noon 接口更新。<div class="acts"><a class="btn main sm" href="05d-小架工作台.html#check">去上架前检查</a></div>${meta('只跑脚本', '不花钱')}`
+      : `阿语标题和五点卖点写好了，标题加上「保冷 24 小时、保热 12 小时」，第 5 条换成白色星期五送礼。<b>只出草稿</b>，上架要拍板。<div class="acts"><a class="btn main sm" href="05d-小架工作台.html">在小架工作台看</a></div>${meta('gpt-6', '¥0.06')}`;
+    return `星帆商店 阿联酋站本周 ROAS <b>2.60</b>，7 天前是 2.90，一路往下，已经接近保本线 2.40。主要是两个自动广告组低于保本：<b>积木-自动</b>（ROAS 1.9）和<b>解压玩具-自动</b>（2.1）。15:30 已批降价，小投执行中：3 条已生效，pop it 那条李四撤回了。明天看效果；要是还往下走，小巡会写进日报。
+      <table class="mini"><tr><td>积木-自动 · magnetic tiles</td><td class="r">ROAS 1.9 · 降 20% 已生效</td></tr><tr><td>解压玩具-自动 · fidget toys</td><td class="r">ROAS 2.1 · 降 10% 已生效</td></tr></table>${meta('gpt-6', '¥0.04')}`;
+  }
+  OS.demo({onState: s => { if (!$('#chat').hidden) return; home(s); }});
+</script>
+</body>
+</html>

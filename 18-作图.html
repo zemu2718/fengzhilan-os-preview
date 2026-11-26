@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 作图</title>
+<!-- P18 作图（小架负责，一期上线）。参考 LinkFox AI 的首页、创作工具、灵感库、商品库、链接管理、批量生图。
+     视频单独一个页面（P19），这里的视频类工具点了跳过去。对内使用：做好的先进商品库，上架要拍板；费用记在 AI 用量里。
+     示例图都是演示内容（同一个水壶），上线后换成真实作品。
+     页面：#home 首页 · #tools 创作工具 · #ideas 灵感库 · #products 商品库 · #listings 链接管理 · #batch 批量生图 · #history 创作历史 · #t/工具编号 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<link rel="stylesheet" href="assets/studio.css">
+</head>
+<body>
+<main class="main" id="page"></main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script src="assets/studio.js"></script>
+<script>
+  OS.shell({active: 'image'});
+  const {$, $$, icon, toast, states} = OS;
+  const {C, card, inspire, ic} = STUDIO;
+  // 常用参数
+  const F = {
+    prod: {t: 'upload', l: '商品图', small: '（必填）', picked: ['product'], lib: true},
+    sell: {t: 'text', l: '卖点', small: '（选填）', ph: '比如：保温 12 小时、一手拿、不漏水；给沙特家庭用', tools: ['AI 分析']},
+    size: {t: 'seg', l: '尺寸', opts: ['noon 主图 1:1', '详情 3:4', '横版 16:9']},
+    count: n => ({t: 'seg', l: '数量', opts: ['1', '4', '6', '9'], on: n}),
+    words: {t: 'seg', l: '图上文字', opts: ['不放字', '英文', '阿语', '英文 + 阿语']},
+    ask: ph => ({t: 'text', l: '想怎么改', small: '（必填）', ph, tools: ['提示词优化']}),
+    src: l => ({t: 'upload', l: l || '原图', small: '（必填）'}),
+    fashion: {t: 'note', text: '服装、鞋帽、饰品类用的工具。我们现在卖的是杯壶和 3C，先留着，有服装类商品时再用。'},
+  };
+  const V = id => ({href: `19-视频.html#t/${id}`, tag: '去视频'});
+  const T = {
+    // 商品与场景
+    set: {g: 'prod', name: '商品套图', icon: 'grid', desc: '一张白底图，出一套 noon 主图和详情图', lead: '一张白底图，出一套能直接上架的主图和详情图', demo: {in: ['product'], out: ['scene']}, outs: ['scene', 'studio', 'detail', 'flatlay', 'hand', 'wf'], fields: [F.prod, F.sell, F.size, F.count(2), F.words], cost: '0.40', unit: '张'},
+    scene: {g: 'prod', name: '商品场景图', icon: 'home', desc: '把商品放进真实场景', demo: {in: ['product'], out: ['flatlay']}, outs: ['flatlay', 'scene', 'ramadan', 'hand'], fields: [F.prod, {t: 'chips', l: '场景', opts: ['家居厨房', '户外徒步', '办公桌', '节日礼盒', '俯拍平铺'], on: 4}, {t: 'text', l: '补充说明', small: '（选填）', ph: '比如：放薄荷叶和柠檬片，自然光'}, F.count(1)], cost: '0.40', unit: '张'},
+    hand: {g: 'prod', name: '手持商品', icon: 'person', desc: '上传商品图，出真实的手持图', demo: {in: ['product'], out: ['hand']}, outs: ['hand', 'ugc'], fields: [F.prod, {t: 'chips', l: '手的样子', opts: ['只露手', '半身', '不露脸']}, F.count(1)], cost: '0.40', unit: '张'},
+    variant: {g: 'prod', name: '场景裂变', icon: 'layers', desc: '一张场景图，变出多套相似场景', demo: {in: ['scene'], out: ['ramadan']}, outs: ['ramadan', 'wf', 'flatlay', 'hand'], fields: [F.src('场景图'), {t: 'seg', l: '变化幅度', opts: ['轻微', '适中', '大胆'], on: 1}, F.count(1)], cost: '0.40', unit: '张'},
+    combo: {g: 'prod', name: '组合主图', tag: 'NEW', icon: 'grid', desc: '白底图精修，出主图裂变', demo: {in: ['product'], out: ['studio']}, outs: ['studio', 'product', 'color', 'detail'], fields: [F.prod, F.size, F.count(1)], cost: '0.40', unit: '张'},
+    copy: {g: 'prod', name: '爆款图复刻', tag: 'NEW', icon: 'copy', desc: '选一张别人的爆款图，换成我们的商品', demo: {in: ['wf', 'product'], labels: ['参考图', '你的商品'], out: ['wf']}, outs: ['wf'], fields: [F.src('参考图'), F.prod, {t: 'seg', l: '保留多少', opts: ['只学构图', '构图和配色', '尽量一样'], on: 1}], cost: '0.50', unit: '张'},
+    swap: {g: 'prod', name: '商品替换', icon: 'refresh', desc: '保留原图背景，换成另一个商品', demo: {in: ['scene', 'kidscup'], labels: ['原图', '换成'], out: ['scene']}, fields: [F.src('原图'), {t: 'upload', l: '换成的商品', picked: ['kidscup']}], cost: '0.40', unit: '张'},
+    recolor: {g: 'prod', name: '套图换色', icon: 'palette', desc: '一套图一起换成别的颜色', demo: {in: ['product'], out: ['color']}, outs: ['color'], fields: [F.src('套图'), {t: 'chips', l: '目标颜色', opts: ['陶土橙', '沙色', '雾蓝', '炭黑'], on: 0}], cost: '0.30', unit: '张'},
+    // 模特与服装
+    model: {g: 'model', name: '真人换模特', icon: 'person', desc: '模特图一键换脸，适应不同市场', fields: [F.fashion, F.src('模特图')]},
+    mscene: {g: 'model', name: '模特换场景', icon: 'person', desc: '保留模特，换不同场景', fields: [F.fashion, F.src('模特图')]},
+    wear: {g: 'model', name: 'AI 穿衣', icon: 'shirt', desc: '平铺图一键上身', fields: [F.fashion, F.src('平铺图')]},
+    pose: {g: 'model', name: '姿势裂变', icon: 'person', desc: '一张模特图，多种姿势', fields: [F.fashion, F.src('模特图')]},
+    acc: {g: 'model', name: 'AI 穿戴', icon: 'person', desc: '鞋帽饰品一键上身', fields: [F.fashion, F.src('商品图')]},
+    fset: {g: 'model', name: '服装套图', icon: 'shirt', desc: '自动搭场景和模特，出服装套图', fields: [F.fashion, F.src('服装图')]},
+    // 视频（去视频页）
+    pvideo: {g: 'video', name: '商品视频', icon: 'video', desc: '一张商品图，生成电商视频', ...V('pvideo')},
+    ugc: {g: 'video', name: '带货视频', icon: 'mic', desc: '真人出镜的带货短视频', ...V('ugc')},
+    vbatch: {g: 'video', name: '批量生成', icon: 'layers', desc: '多个商品一次出视频', ...V('vbatch')},
+    vcopy: {g: 'video', name: '视频复刻', tag: 'NEW', icon: 'copy', desc: '粘贴爆款视频链接，一键复刻', ...V('vcopy')},
+    vedit: {g: 'video', name: '视频编辑', icon: 'pen', desc: '改视频里的商品、人物、风格', ...V('vedit')},
+    vtrans: {g: 'video', name: '视频翻译', icon: 'globe', desc: '一键翻成阿语，口型同步', ...V('vtrans')},
+    vcut: {g: 'video', name: '视频剪辑', icon: 'scissors', desc: '选几段视频，直接剪', ...V('vcut')},
+    // 修图
+    smart: {g: 'edit', name: '智能修图', tag: 'NEW', icon: 'wand', desc: '说一句话改图，想改哪里改哪里', demo: {in: ['product'], out: ['studio']}, outs: ['studio', 'scene'], fields: [F.src(), F.ask('比如：换成大理石台，暖光，留白多一点'), F.count(1)], cost: '0.30', unit: '张'},
+    repaint: {g: 'edit', name: '局部重绘', icon: 'pen', desc: '圈出一块，用一句话重画', demo: {in: ['flatlay'], out: ['scene']}, fields: [F.src(), {t: 'note', text: '上传后在图上涂出要改的地方。'}, F.ask('比如：把墨镜换成一杯冰水')], cost: '0.30', unit: '张'},
+    erase: {g: 'edit', name: '局部消除', icon: 'eraser', desc: '一抹就没，去掉杂物、水印', demo: {in: ['flatlay'], out: ['flatlay'], outLabel: '去掉墨镜后'}, fields: [F.src(), {t: 'note', text: '上传后在图上涂出要去掉的东西。'}], cost: '0.20', unit: '张'},
+    color: {g: 'edit', name: '一键换色', icon: 'palette', desc: '商品颜色一键切换', demo: {in: ['product'], out: ['color']}, outs: ['color'], fields: [F.src(), {t: 'chips', l: '目标颜色', opts: ['陶土橙', '沙色', '雾蓝', '炭黑'], on: 0}], cost: '0.20', unit: '张'},
+    crop: {g: 'edit', name: '图片裁剪', icon: 'crop', desc: '裁成 noon 要求的尺寸和比例', demo: {in: ['scene'], out: ['scene'], ar: '3/4'}, fields: [F.src(), F.size], cost: '0', btn: '开始裁', costNote: '只裁图，不花钱'},
+    retouch: {g: 'edit', name: '商品精修', icon: 'sparkle', desc: '一键提升质感，美化商品', demo: {in: ['product'], out: ['detail']}, outs: ['detail'], fields: [F.src(), {t: 'seg', l: '力度', opts: ['轻', '中', '重'], on: 1}], cost: '0.30', unit: '张'},
+    colorfix: {g: 'edit', name: '色差修复', icon: 'palette', desc: '校正和实物的颜色偏差', demo: {in: ['color'], out: ['product'], labels: ['偏色的图']}, fields: [F.src(), {t: 'upload', l: '实物参考', small: '（选填）'}], cost: '0.20', unit: '张'},
+    print: {g: 'edit', name: '印花修复', icon: 'shirt', desc: '修复穿戴后错乱的印花', fields: [F.fashion, F.src()]},
+    cutout: {g: 'edit', name: '精细抠图', icon: 'crop', desc: '点哪抠哪，抠出白底图', demo: {in: ['scene'], out: ['product']}, fields: [F.src()], cost: '0.10', unit: '张'},
+    bcut: {g: 'edit', name: '批量抠图', icon: 'layers', desc: '一次抠一批', demo: {in: ['hand'], out: ['product']}, fields: [{t: 'upload', l: '图片', small: '（最多 50 张）'}], cost: '0.10', unit: '张'},
+    btrans: {g: 'edit', name: '批量翻译', icon: 'text', desc: '图上的文字一键翻成阿语', fields: [{t: 'upload', l: '图片', small: '（最多 50 张）'}, {t: 'two', l: '语言', opts: [['英文'], ['阿语', '英文 + 阿语']]}], cost: '0.20', unit: '张'},
+    upscale: {g: 'edit', name: '高清放大', icon: 'zoom', desc: '模糊的图变高清', demo: {in: ['detail'], out: ['detail'], inStyle: 'filter:blur(4px)', labels: ['模糊的图'], outLabel: '放大 4 倍'}, fields: [F.src(), {t: 'seg', l: '放大', opts: ['2 倍', '4 倍'], on: 1}], cost: '0.10', unit: '张'},
+    extend: {g: 'edit', name: '智能扩图', icon: 'expand', desc: '自动补全画面边缘', demo: {in: ['studio'], out: ['studio'], inStyle: 'transform:scale(1.7)', labels: ['原图'], outLabel: '扩图后'}, fields: [F.src(), F.size], cost: '0.30', unit: '张'},
+    // 素材
+    kit: {g: 'pod', name: '场景素材', icon: 'home', desc: '生成多风格的场景和背景素材', demo: {in: ['flatlay'], out: ['ramadan']}, fields: [{t: 'text', l: '想要什么', ph: '比如：斋月晚餐桌，灯笼，椰枣'}, F.count(1)], cost: '0.30', unit: '张'},
+    similar: {g: 'pod', name: '相似图裂变', icon: 'layers', desc: '一键批量生成相似图', demo: {in: ['scene'], out: ['flatlay']}, fields: [F.src(), F.count(2)], cost: '0.30', unit: '张'},
+    draw: {g: 'pod', name: 'AI 自由绘图', icon: 'sparkle', desc: '一句话生成图片素材', demo: {in: ['product'], out: ['wf']}, fields: [{t: 'text', l: '描述', ph: '比如：白色和金色的礼盒，飘着金色纸屑'}, F.size, F.count(1)], cost: '0.30', unit: '张'},
+    fit: {g: 'pod', name: '素材贴合', icon: 'layers', desc: '把图案自然贴到商品上', fields: [F.src('商品图'), {t: 'upload', l: '图案'}], cost: '0.30', unit: '张'},
+    extract: {g: 'pod', name: '印花提取', icon: 'shirt', desc: '把商品上的图案单独提出来', fields: [F.fashion, F.src()]},
+  };
+  const G = [['prod', '商品与场景'], ['model', '模特与服装'], ['video', '视频'], ['edit', '修图'], ['pod', '素材']];
+  Object.entries(T).forEach(([k, t]) => { t.groupName = (G.find(g => g[0] === t.g) || [])[1]; });
+  const IDEAS = [['wf', 'product', ['白色星期五']], ['ramadan', 'product', ['斋月']], ['scene', 'product', ['场景主图']], ['studio', 'product', ['棚拍']], ['hand', 'product', ['手持']], ['flatlay', 'product', ['平铺']], ['detail', 'product', ['细节']], ['color', 'product', ['换色']]];
+  const PRODUCTS = [['H039-2 水杯 500ml', '云屿商店 · 沙特', 'product', 8, ''], ['H044 儿童水杯', '云屿商店 · 沙特', 'kidscup', 3, '缺场景图'], ['H061 筋膜枪 X2', '云屿商店 · 沙特', 'massagegun', 5, '少于 6 张'], ['H021 保温杯 600ml', '云屿商店 · 沙特', null, 0, '没有主图'], ['H052 吸管杯', '云屿商店 · 沙特', null, 0, '没有主图'], ['H072 磁力积木 64 片', '星帆商店 · 阿联酋', null, 0, '没有主图']];
+
+  STUDIO.mount({
+    title: '作图', home: 'home', toolsPage: 'tools', sameTool: 'copy', cases: ['scene', 'studio', 'flatlay', 'hand', 'wf', 'ramadan', 'detail', 'color'],
+    jump: ['19-视频.html', '去做视频', 'video'],
+    nav: [[null, [['home', '首页', 'home'], ['tools', '创作工具', 'grid'], ['ideas', '灵感库', 'bulb']]],
+          ['商品资料', [['products', '商品库', 'box'], ['listings', '链接管理', 'link', 'NEW']]],
+          ['批量和记录', [['batch', '批量生图', 'layers'], ['history', '创作历史', 'clock']]]],
+    tools: T,
+    pages: {
+      home(){
+        const io = (a, b, v) => `<div class="io"><figure><img src="${C(a)}" alt=""><span class="lab">原图</span></figure><span class="ar">${icon('arrow', 16)}</span><figure><img src="${C(b)}" alt="">${v ? `<span class="play"><span>${icon('play', 16)}</span></span>` : ''}<span class="lab">${v ? '视频' : '做好'}</span></figure></div>`;
+        return `<div class="hero"><h1>从一张商品图开始</h1></div>
+          <div class="modes"><div class="seg" data-seg>${[['自由创作', 'sparkle'], ['做套图', 'grid'], ['智能修图', 'wand'], ['爆款图复刻', 'copy']].map(([l, i], j) => `<button class="${j === 1 ? 'on' : ''}">${ic(i, 14)}${l}</button>`).join('')}<button data-href="19-视频.html">${ic('video', 14)}做视频 ${icon('arrow', 12)}</button></div></div>
+          <div class="bigbox"><div class="row1"><span class="thumb"><img src="${C('product')}" alt="H039-2 水杯"></span><textarea aria-label="卖点和要求" placeholder="做套图之前，先给商品图和卖点。比如：保温 12 小时、一手拿、不漏水；给沙特家庭用"></textarea></div>
+            <div class="bar"><button class="chip">${icon('plus', 14)}从商品库选</button><button class="chip">尺寸 <b>noon 主图 1:1</b></button><button class="chip">数量 <b>6 张</b></button><button class="chip">风格 <b>沿用品牌风格</b></button>
+              <button class="btn main go" data-tool="set">${ic('wand', 15)}开始做</button></div></div>
+          <div class="sec-h"><h2>创作工具</h2><a href="#tools">查看全部工具 →</a></div>
+          <section class="feat">
+            <div class="fc" data-tool="set"><h3>${T.set.name}</h3><p>${T.set.desc}</p>${io('product', 'scene')}</div>
+            <div class="fc" data-tool="smart"><h3>${T.smart.name}</h3><p>${T.smart.desc}</p>${io('product', 'studio')}</div>
+            <div class="fc" data-tool="pvideo"><h3>商品视频</h3><p>一张商品图，生成电商视频（去视频页）</p>${io('product', 'video', 1)}</div>
+            <div class="minis">${['hand', 'color', 'upscale', 'ugc'].map(k => card(k, true)).join('')}</div>
+          </section>
+          <div class="sec-h"><h2>灵感库</h2><span>白色星期五 11/27 · 还有 7 天</span><a href="#ideas">进入灵感库 →</a></div>
+          ${inspire(IDEAS.slice(0, 8))}`;
+      },
+      tools(){
+        return `<div class="std-h"><div><h1>创作工具</h1><p>先选商品，再选工具。视频类工具在视频页。</p></div></div>
+          <div class="tabs-s" data-seg>${[['all', '全部'], ...G].map(([k, l], j) => `<button class="chip${j ? '' : ' on'}" data-g="${k}">${l}</button>`).join('')}</div>
+          ${G.map(([k, l]) => `<section data-sec="${k}"><div class="sec-h" style="margin-top:var(--sp-4)"><h2>${l}</h2>${k === 'model' ? '<span>服装类商品用，现在先留着</span>' : k === 'video' ? '<span>点了去视频页</span>' : ''}</div>
+            <div class="tgrid">${Object.keys(T).filter(id => T[id].g === k).map(id => card(id)).join('')}</div></section>`).join('')}`;
+      },
+      ideas(){
+        return `<div class="std-h"><div><h1>灵感库</h1><p>看到喜欢的，点「做同款」，换成我们的商品。</p></div></div>
+          <div class="segf" data-seg style="max-width:520px;margin-bottom:var(--sp-4)"><button class="on">当季热门</button><button>套图案例</button><button>设计模板</button><button>作图工具</button></div>
+          <div class="filters"><span>活动</span><div class="opts"><span class="season on">白色星期五 11/27 <small>7 天后</small></span><span class="season">斋月 约 2/8 <small>80 天后</small></span><span class="season">开斋节 <small>以后</small></span></div>
+            <span>类型</span><div class="opts" data-seg>${['全部', '卖点图', '场景图', '细节图', '白底图'].map((x, j) => `<button class="chip${j ? '' : ' on'}">${x}</button>`).join('')}</div>
+            <span>品类</span><div class="opts" data-seg>${['全部', '杯壶', '3C 数码', '家居', '母婴'].map((x, j) => `<button class="chip${j ? '' : ' on'}">${x}</button>`).join('')}</div>
+            <span>版式</span><div class="opts" data-seg>${['全部', '方形', '横版', '竖版'].map((x, j) => `<button class="chip${j ? '' : ' on'}">${x}</button>`).join('')}</div></div>
+          ${inspire(IDEAS.concat([['ugc', 'product', ['带货视频'], '2/3'], ['video', 'product', ['商品视频']]]))}
+          <p class="hint">灵感图是演示内容。上线后从团队做过、效果好的图里选，图上的文字由运营决定放不放。</p>`;
+      },
+      products(state){
+        if (state === '没有数据') return `<div class="std-h"><div><h1>商品库</h1><p>管理商品和 SKU，存可以反复用的图片和资料</p></div></div><div class="card">${states.empty({img: 'empty-task.webp', title: '从第一个商品开始', text: '集中管理商品图片、资料和 SKU。', act: `<button class="btn main">${icon('plus', 14)}添加商品</button><button class="btn">从 noon 店铺同步</button><button class="btn">表格导入</button>`})}</div>`;
+        return `<div class="std-h"><div><h1>商品库</h1><p>和小投、小补、小测用的是同一个商品库；这里看图片，价格和采购资料在工作台里改</p></div>
+            <div class="acts"><button class="btn">${ic('link', 14)}链接导入</button><button class="btn">表格导入</button><button class="btn main">${icon('plus', 14)}添加商品</button></div></div>
+          <div class="row" style="gap:8px;margin-bottom:var(--sp-4)"><input class="input" placeholder="搜索商品名称或 SKU" style="max-width:360px;height:36px"><select class="select" style="width:auto;height:36px"><option>全部店铺</option><option>云屿商店 · 沙特</option><option>星帆商店 · 阿联酋</option></select><select class="select" style="width:auto;height:36px"><option>全部</option><option>缺图的</option></select></div>
+          <div class="pgrid">${PRODUCTS.map(([n, s, p, c, warn]) => `<div class="pc"><div class="pic ${p ? '' : 'none'}">${p ? `<img src="${C(p)}" alt="">` : `${ic('upload', 22)}还没有主图`}</div>
+            <div class="b"><b>${n}</b>${s} · ${c} 张图${warn ? `<div class="row"><span class="tag" style="--k:var(--wait)">${warn}</span><span class="sp"></span><a class="warn" href="#t/set">去做图</a></div>` : ''}</div></div>`).join('')}</div>`;
+      },
+      listings(){
+        const L = [['product', 'H039-2 Insulated Water Bottle 500ml', '云屿商店 · 沙特', 8, 86, ['场景图少于 2 张']], ['kidscup', 'Kids Water Bottle with Straw 500ml', '云屿商店 · 沙特', 3, 62, ['主图不是纯白底', '缺阿语标题', '图片少于 6 张']], ['massagegun', 'Bluetooth Earbuds X2 with Charging Case', '云屿商店 · 沙特', 5, 74, ['图片少于 6 张']], [null, 'Vacuum Flask 600ml Stainless Steel Keeps Hot…', '云屿商店 · 沙特', 0, 40, ['没有主图', '标题超过 200 字']]];
+        return `<div class="std-h"><div><h1>链接管理</h1><p>店铺 Listing 通过 noon 接口同步，检查图片和文案，有问题一键交给小架优化</p></div><div class="acts"><span class="st ok">云屿商店 · 沙特、阿联酋已连接 · 17:00 同步</span></div></div>
+          <div class="tabs" role="tablist"><button class="on">我的 Listing</button><button>参考 Listing</button></div>
+          <div class="row" style="gap:8px;margin-bottom:var(--sp-3);flex-wrap:wrap"><select class="select" style="width:auto;height:36px"><option>云屿商店 · 沙特</option><option>星帆商店 · 阿联酋</option></select><select class="select" style="width:auto;height:36px"><option>在售</option><option>已下架</option><option>草稿</option></select><input class="input" placeholder="搜索标题或 SKU" style="max-width:320px;height:36px"></div>
+          <div class="card tbl-wrap"><table class="tbl"><thead><tr><th>商品</th><th>店铺</th><th class="r">图片</th><th>诊断</th><th>要改的</th><th></th></tr></thead><tbody>
+            ${L.map(([p, t, s, n, sc, iss]) => `<tr><td><span class="row" style="gap:10px"><span class="thumb" style="width:44px;height:44px;border-radius:8px">${p ? `<img src="${C(p)}" alt="">` : ''}</span><b class="fs-13" style="max-width:320px">${t}</b></span></td><td>${s}</td><td class="r num">${n}</td>
+              <td><span class="score" style="--v:${sc};--k:var(${sc >= 80 ? '--ok' : sc >= 60 ? '--wait' : '--error'})"><span>${sc}</span></span></td><td><div class="issues">${iss.map(i => `<span class="tag" style="--k:var(--wait)">${i}</span>`).join('')}</div></td>
+              <td class="r"><a class="btn sm" href="#t/set">交给小架优化</a></td></tr>`).join('')}
+          </tbody></table></div>
+          <p class="hint" style="margin-top:12px">诊断规则按 noon 的要求（主图纯白底、至少 6 张、阿语标题）。优化后先存成草稿，上架要拍板。</p>`;
+      },
+      batch(){
+        const B = [['smart', '智能修图', '一次换一批商品的背景、光线', ['product', 'studio', 'color', 'detail']], ['recolor', '套图换色', '一整套图换成目标颜色', ['product', 'color', 'scene', 'studio']],
+          ['set', '商品套图', '多个商品，各出一套', ['scene', 'studio', 'detail', 'flatlay']], ['combo', '白底图精修', '统一修成纯白底', ['product', 'massagegun', 'kidscup', 'color']],
+          ['similar', '主图裂变', '一张白底图，多角度、多展示方式', ['product', 'studio', 'hand', 'detail']], ['upscale', '高清放大', '一批图一起变清楚', ['detail', 'studio', 'product', 'scene']]];
+        return `<div class="std-h"><div><h1>批量生图</h1><p>按项目来：选一批商品、选一个工具，小架做完一起交</p></div></div>
+          <div class="projects"><div class="side2"><a class="on">${icon('plus', 14)}创建项目</a><a>${ic('layers', 14)}我的项目 <span class="tag" style="margin-left:auto">2</span></a></div>
+          <div><div class="tabs-s" data-seg>${['全部', '商品图', '修图'].map((x, j) => `<button class="chip${j ? '' : ' on'}">${x}</button>`).join('')}</div>
+            <div class="grid g3">${B.map(([k, n, d, ims]) => `<div class="bt"><div class="h">${ic(T[k].icon, 16)}<b>${n}</b><button class="btn sm main" data-tool="${k}">开始</button></div><p>${d}</p><div class="grid4">${ims.map(i => `<img src="${C(i)}" alt="">`).join('')}</div></div>`).join('')}</div></div></div>`;
+      },
+      history(state){
+        if (state === '没有数据') return `<div class="card">${states.empty({img: 'empty-task.webp', title: '还没有作品', text: '选一个商品，说一句卖点，小架就开始做。', act: '<a class="btn main" href="#home">去做图</a>'})}</div>`;
+        const W = [['scene', '商品套图', '今天 16:12', '等你挑', 'wait'], ['studio', '智能修图', '今天 16:10', '已选进 listing', 'ok'], ['color', '一键换色', '今天 15:40', '等你挑', 'wait'], ['detail', '商品精修', '昨天 18:02', '已选进 listing', 'ok'], ['hand', '手持商品', '昨天 17:30', '等你挑', 'wait'], ['wf', '爆款图复刻', '11/18', '上架待拍板', 'wait'], ['flatlay', '商品场景图', '11/18', '已选进 listing', 'ok'], ['ramadan', '场景裂变', '11/17', '没用上', 'off']];
+        return `<div class="std-h"><div><h1>创作历史</h1><p>小架做过的图，都在这里；视频在视频页的历史记录</p></div><div class="acts"><div class="seg" data-seg><button class="on">全部</button><button>等你挑</button><button>已用上</button></div></div></div>
+          <div class="pgrid">${W.map(([p, t, w, s, k]) => `<div class="pc"><div class="pic"><img src="${C(p)}" alt=""></div><div class="b"><b>${t}</b>H039-2 · ${w}<div class="row"><span class="st ${k}">${s}</span></div></div></div>`).join('')}</div>`;
+      },
+    },
+    after: {
+      tools(){ $$('[data-g]').forEach(b => b.addEventListener('click', () => $$('[data-sec]').forEach(s => s.hidden = b.dataset.g !== 'all' && s.dataset.sec !== b.dataset.g))); },
+    },
+  });
+</script>
+</body>
+</html>

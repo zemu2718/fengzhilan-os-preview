@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · AI 员工详情</title>
+<!-- P13 AI 员工详情（首期只读，加一键暂停）。?id=xiaotou / xiaoxun / xiaojia … -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  .wrap{display:grid;grid-template-columns:320px minmax(0,1fr);gap:var(--sp-5);align-items:start}
+  .who{padding:var(--sp-5);text-align:center;background:radial-gradient(80% 60% at 50% 25%,rgba(242,181,68,.12),transparent 70%),var(--surface-1)}
+  .who .ava{margin:0 auto}
+  .who h1{font-size:var(--fs-24);margin-top:var(--sp-2)} .who h1 small{font-size:var(--fs-14);color:var(--text-3);font-weight:400;margin-left:6px}
+  .who p{font-size:var(--fs-13);color:var(--text-2);line-height:var(--lh-loose);margin:var(--sp-3) 0}
+  .dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px var(--sp-4);font-size:var(--fs-13);text-align:left;margin-top:var(--sp-4);padding-top:var(--sp-4);border-top:1px solid var(--divider)}
+  .dl dt{color:var(--text-3)} .dl dd{margin:0;min-width:0;overflow-wrap:anywhere}
+  .bars{display:flex;align-items:flex-end;gap:10px;height:120px;padding-top:var(--sp-3)}
+  .bars div{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:var(--fs-11);color:var(--text-3)}
+  .bars i{width:100%;max-width:36px;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,var(--brand-fill-hi),var(--brand-fill-lo));transform-origin:bottom;animation:grow var(--t-number) var(--ease) both}
+  @keyframes grow{from{transform:scaleY(0)}}
+  .perm li{padding:6px 0;font-size:var(--fs-13);color:var(--text-2);list-style:none;display:flex;gap:8px;align-items:center}
+  .perm{margin:0;padding:0}
+  @media (max-width:1023px){ .wrap{grid-template-columns:minmax(0,1fr)} }
+</style>
+</head>
+<body>
+<main class="main" id="page"><div id="body"></div></main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, q, icon, yuan, st, taskSt, ai, member, store, img, states, confirm, toast} = OS;
+  OS.shell({active: 'ai'});
+  const A = ai(q.get('id') || 'xiaotou') || ai('xiaotou');
+  document.title = `风之岚 OS · ${A.name}`;
+  let paused = false;
+  const PERM = {xiaotou: ['读广告、销售、库存数据', '改出价（一次最多 30%）', '暂停、否定、加词', '加预算（必须拍板）'], xiaoxun: ['读所有 AI 员工的运行和执行记录', '读店铺数据', '发企业微信（日报、紧急通知）', '不改任何线上设置'],
+    xiaoce: ['读销量、退货、广告花费和单件毛利', '按本轮标准下结论', '停止投入、追加测款预算（必须拍板）', '不改线上设置'],
+    xiaobu: ['读可售库存、销量、在途和采购资料', '出补货申请草稿（要花钱，必须拍板）', '给工厂、货代写消息草稿（只出草稿，不发送）', '不下采购单'],
+    xiaojia: ['读商品资料', '通过接口上架（必须拍板）'], xiaoxuan: ['读成本和运费', '只算，不改线上'], xiaodao: ['读团队规则和知识', '只回答，不改线上']};
+  function render(state = '正常'){
+    const B = $('#body'), on = A.status === 'on';
+    if (state === '加载中') return B.innerHTML = '<div class="wrap"><div class="skel" style="height:520px"></div><div class="skel" style="height:520px"></div></div>';
+    if (state === '出错') return B.innerHTML = states.error({what: `${A.name}的运行记录没拿到`, why: '运行器暂时连不上'});
+    const runs = D.tasks.filter(t => t.ai === A.id);
+    B.innerHTML = `<div class="crumb"><a href="${OS.withAs('12-AI员工.html')}">AI 员工</a> / ${A.name}</div>
+    <div class="wrap">
+      <aside class="card who enter"><div class="ava xl ${on && !paused ? '' : 'off'}"><img src="${img(A.img)}" alt=""><span class="hb"></span></div>
+        <h1>${A.name}<small>${A.role}</small></h1>
+        <div>${on ? (paused ? st('已暂停执行', 'off') : st('在岗', 'run')) : st(A.later + '上线', 'off')}</div>
+        <p>${A.desc}</p>
+        ${on && A.id !== 'xiaoxun' ? `<button class="btn ${paused ? 'main' : 'danger'} block" id="pause">${icon('pause')}${paused ? '恢复执行' : '暂停它的所有执行'}</button>` : ''}
+        <dl class="dl"><dt>负责人</dt><dd>${member(A.owner).name}</dd>${on ? `<dt>定时</dt><dd>${A.schedule}</dd><dt>技能</dt><dd class="mono">${A.skill}</dd><dt>模型</dt><dd>${A.model}</dd><dt>预算上限</dt><dd>${A.budget}</dd>` : `<dt>上线</dt><dd>${A.later}</dd><dt>能做</dt><dd>${A.scenes.join('、')}</dd>`}</dl>
+      </aside>
+      <div>
+        ${on ? `<section class="card pad"><div class="row"><h3>正在干</h3><span class="sp"></span><span class="t3 fs-12">${A.now ? A.now.by : '每小时一次'}</span></div>
+          ${A.now ? `<div style="margin:8px 0 4px;font-weight:600">${A.now.task}</div><div class="steps">${A.now.steps.map((s, j) => `<div class="step ${j < A.now.step ? 'done' : j === A.now.step ? 'doing' : ''}"><span class="i">${j < A.now.step ? icon('check', 11) : ''}</span><div><b>${s}</b></div><span class="t">${j < A.now.step ? '已完成' : j === A.now.step ? '进行中' : ''}</span></div>`).join('')}</div>`
+            : `<p class="t2" style="margin-top:8px">${A.last} 完成；${A.next}。</p>`}</section>
+        <div class="grid g2 section">
+          <section class="card pad"><h3>近 7 天费用</h3><div class="bars">${[1.0, 1.3, 1.1, 1.4, 0.9, 1.2, 1.5].map((v, i) => `<div><i style="height:${v / 1.5 * 90}px;animation-delay:${i * .05}s"></i>${['周五', '周六', '周日', '周一', '周二', '周三', '今天'][i]}</div>`).join('')}</div>
+            <p class="hint" style="margin-top:8px">本周 ${A.week.runs} 次 · ${yuan(A.week.cost)} · 预算 ${A.budget}</p></section>
+          <section class="card pad"><h3 style="margin-bottom:8px">能动哪些</h3><ul class="perm">${(PERM[A.id] || []).map(p => `<li>${icon(p.includes('不改') || p.includes('不下') || p.includes('只') ? 'lock' : 'check', 14)}${p}</li>`).join('')}</ul>
+            <p class="hint">改线上、花钱的事必须先拍板；幅度上限在「管理后台 · 谁能批什么」里改。</p>${A.page ? `<a class="btn block" style="margin-top:12px" href="${A.page}">打开${A.name}工作台</a>` : ''}</section>
+        </div>
+        <section class="card section"><div class="card-h"><h3>最近运行</h3><a class="more" href="10-任务.html">全部</a></div>
+          <div class="card-b tbl-wrap"><table class="tbl"><tbody>${runs.map(t => `<tr class="link" onclick="location.href='11-运行详情.html?run=${t.run || 'R-20261119-003'}'"><td><b>${t.name}</b>${t.store ? ' · ' + store(t.store).name : ''}<span class="sub">${t.sub}</span></td><td>${taskSt(t.status)}</td><td class="t3 nowrap r">${t.time}</td></tr>`).join('')}</tbody></table></div></section>`
+        : `<section class="card">${states.empty({img: 'empty-task.webp', title: `${A.name}${A.later}上线`, text: `上线后能做：${A.scenes.join('、')}。到时这里显示它在干的活、费用和运行记录。`})}</section>`}
+      </div>
+    </div>`;
+    if ($('#pause')) $('#pause').onclick = async () => {
+      if (!paused && !await confirm({title: `暂停${A.name}的所有执行？`, msg: '正在执行和排队的改动都会停下，已经生效的不受影响；复盘照常出建议。随时可以恢复。', ok: '暂停', danger: true})) return;
+      paused = !paused; render(); toast(paused ? '已暂停' : '已恢复', paused ? `${A.name}不会再改线上，直到你恢复。` : `${A.name}继续执行排队的改动。`, paused ? 'err' : 'ok');
+    };
+  }
+  OS.demo({states: ['正常', '加载中', '出错'], onState: render});
+</script>
+</body>
+</html>

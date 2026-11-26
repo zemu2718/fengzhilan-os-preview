@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 管理后台</title>
+<!-- P16 管理后台（决策层、主管可进；运营进来只看到提示）。2026-11-20 参考百智办公（chaitin/MonkeyCode 的 monkeyai）管理后台的信息结构：
+     左边分组菜单 + 面包屑 + 指标卡 + 卡片列表 + 配置行。只借结构，不复制代码（对方是 AGPL-3.0）；颜色、字号仍用本项目的设计变量。
+     只放首期要的：数据分析、使用记录、资源管理、预算、系统设置。知识库、专家、云电脑、客户端这些首期没有，不放。
+     每个页面一个网址片段，如 #model、#ops，前端对应各自的路由。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<style>
+  main.main{max-width:none;padding:0}
+  .adm{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:calc(100vh - var(--topbar-h))}
+  /* 左边分组菜单 */
+  .anav{position:sticky;top:var(--topbar-h);height:calc(100vh - var(--topbar-h));overflow:auto;padding:var(--sp-4) var(--sp-3);border-right:1px solid var(--divider);background:rgb(var(--rgb-deep) / .6)}
+  .anav .ttl{display:flex;align-items:center;gap:10px;padding:4px 8px 14px;margin-bottom:6px;border-bottom:1px solid var(--divider)}
+  .anav .ttl img{width:30px;height:30px}
+  .anav .ttl b{display:block;font-size:var(--fs-14)} .anav .ttl span{font-size:var(--fs-12);color:var(--text-3)}
+  .grp-b{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;padding:9px 10px;margin-top:4px;border-radius:10px;cursor:pointer;color:var(--text-1);font-size:var(--fs-14);font-weight:500}
+  .grp-b:hover{background:rgb(var(--rgb-tint) / .05)}
+  .grp-b .ic{color:var(--text-2)} .grp-b .chev{margin-left:auto;color:var(--text-3);transition:transform var(--t-hover)}
+  .grp.open .grp-b .chev{transform:rotate(180deg)}
+  .grp.open .grp-b{background:rgb(var(--rgb-tint) / .04)}
+  .gsub{display:none;padding:2px 0 4px}
+  .grp.open .gsub{display:block}
+  .gsub a{display:flex;align-items:center;gap:10px;padding:7px 10px 7px 20px;margin:1px 0;border-radius:9px;font-size:var(--fs-13);color:var(--text-2)}
+  .gsub a::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--text-3)}
+  .gsub a:hover{background:rgb(var(--rgb-tint) / .05);color:var(--text-1)}
+  .gsub a.on{background:linear-gradient(90deg,rgba(242,181,68,.14),rgba(242,181,68,.03));color:var(--text-1);box-shadow:inset 2px 0 0 var(--brand)}
+  .gsub a.on::before{background:var(--brand)}
+  /* 内容区 */
+  .abody{padding:var(--sp-4) var(--sp-6) var(--sp-7);min-width:0}
+  .bc{display:flex;align-items:center;gap:8px;font-size:var(--fs-13);color:var(--text-3);margin-bottom:var(--sp-4)}
+  .bc b{color:var(--text-1);font-weight:500}
+  .bc .sep{opacity:.5}
+  .ph{display:flex;align-items:flex-end;gap:var(--sp-3);flex-wrap:wrap;margin-bottom:var(--sp-4)}
+  .ph h1{font-size:var(--fs-20)} .ph p{font-size:var(--fs-13);color:var(--text-3);margin-top:2px}
+  .ph .acts{margin-left:auto;display:flex;gap:var(--sp-2);flex-wrap:wrap;align-items:center}
+  /* 指标卡：标题 + 时间范围在上，大数字在内框里（参考对方的「模型调用次数 · 24 小时」） */
+  .mgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--sp-3)}
+  .mc{padding:var(--sp-3);border-radius:var(--r-card);background:var(--surface-1);border:1px solid var(--divider)}
+  .mc .h{display:flex;align-items:center;gap:8px;padding:2px 4px 10px;font-size:var(--fs-13);color:var(--text-2)}
+  .mc .h small{margin-left:auto;font-size:var(--fs-12);color:var(--text-3)}
+  .mc .in{display:flex;align-items:baseline;gap:8px;padding:var(--sp-3) var(--sp-4);border-radius:10px;background:var(--surface-2)}
+  .mc .in b{font-size:var(--fs-24);font-weight:600;font-variant-numeric:tabular-nums}
+  .mc .in span{margin-left:auto;font-size:var(--fs-12);color:var(--ok)}
+  .pane{padding:var(--sp-3);border-radius:var(--r-card);background:var(--surface-1);border:1px solid var(--divider)}
+  .pane > .h{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:2px 4px 10px;font-size:var(--fs-13);color:var(--text-2)}
+  .pane > .h b{color:var(--text-1);font-weight:600;font-size:var(--fs-14)}
+  .pane > .h small{margin-left:auto;font-size:var(--fs-12);color:var(--text-3)}
+  .pane > .h .btn{margin-left:auto}
+  .pane > .in{padding:var(--sp-3) var(--sp-4);border-radius:10px;background:var(--surface-2)}
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--sp-3)}
+  .two.lr{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+  .two.pp{grid-template-columns:minmax(0,280px) minmax(0,1fr)}
+  .sec{margin-top:var(--sp-3)}
+  /* 竖条图 */
+  .bars{display:flex;align-items:flex-end;gap:4px;height:150px}
+  .bars div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;height:100%;font-size:10px;color:var(--text-3)}
+  .bars i{width:100%;max-width:22px;border-radius:3px 3px 1px 1px;background:var(--k,var(--brand));opacity:.85;transform-origin:bottom;animation:grow var(--t-number) var(--ease) both}
+  @keyframes grow{from{transform:scaleY(0)}}
+  /* 模型卡（参考对方「大模型」页） */
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--sp-3)}
+  .rc{border-radius:var(--r-card);background:var(--surface-2);border:1px solid var(--divider);overflow:hidden}
+  .rc .t{display:flex;align-items:center;gap:12px;padding:var(--sp-4)}
+  .rc .t .lg{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface-3);color:var(--brand-hi);font-weight:700;flex-shrink:0}
+  .rc .t .lg img{width:36px;height:36px;object-fit:contain}
+  .rc .t b{display:block;font-size:var(--fs-14);font-family:var(--font-mono)} .rc .t span{display:block;font-size:var(--fs-12);color:var(--text-3);margin-top:2px}
+  .rc .t .more{margin-left:auto;align-self:flex-start}
+  .rc .kv{display:flex;justify-content:space-between;padding:0 var(--sp-4) var(--sp-3);font-size:var(--fs-13);color:var(--text-2)}
+  .rc .kv b{color:var(--text-1);font-variant-numeric:tabular-nums}
+  .rc .f{display:flex;flex-wrap:wrap;gap:6px;padding:var(--sp-3) var(--sp-4);border-top:1px solid var(--divider)}
+  /* 配置行（参考对方「计费方式 / 其他设置」） */
+  .cfg{display:flex;align-items:center;gap:var(--sp-3);padding:12px 14px;margin-top:8px;border-radius:10px;background:var(--surface-2)}
+  .cfg > div{min-width:0;flex:1}
+  .cfg label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .cfg b{display:block;font-size:var(--fs-13);font-weight:500} .cfg span.s{display:block;font-size:var(--fs-12);color:var(--text-3);margin-top:2px}
+  .cfg .v{font-size:var(--fs-13);color:var(--text-2);white-space:nowrap;font-variant-numeric:tabular-nums}
+  .cfg .input{width:120px;text-align:right;height:32px}
+  .pane .d{font-size:var(--fs-12);color:var(--text-3);padding:0 4px 4px}
+  /* 成员与分组 */
+  .tree a{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;font-size:var(--fs-13);color:var(--text-2);cursor:pointer}
+  .tree a:hover{background:rgb(var(--rgb-tint) / .05)} .tree a.on{background:rgba(242,181,68,.12);color:var(--text-1)}
+  .tree a .n{margin-left:auto;font-size:var(--fs-12);color:var(--text-3)}
+  .tree a.sub1{padding-left:28px}
+  .tree a.off{opacity:.5}
+  .mcard{padding:var(--sp-3) var(--sp-4);margin-top:8px;border-radius:10px;background:var(--surface-2)}
+  .mcard .t{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
+  .mcard .t > div{min-width:0}
+  .mcard .t b{font-size:var(--fs-14)} .mcard .t span.s{display:block;font-size:var(--fs-12);color:var(--text-3)}
+  .mcard .f{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--divider);font-size:var(--fs-12);color:var(--text-3)}
+  .filters{display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-bottom:var(--sp-3)}
+  .filters .input,.filters .select{width:auto;height:34px;font-size:var(--fs-13)}
+  .ai-i{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+  .ai-i img{width:22px;height:22px;object-fit:contain}
+  .ai-i .mf{width:22px;height:22px;font-size:11px}
+  @media (max-width:1279px){ .mgrid{grid-template-columns:1fr 1fr} .two,.two.lr,.two.pp{grid-template-columns:minmax(0,1fr)} }
+  @media (max-width:1023px){ .adm{grid-template-columns:minmax(0,1fr)} .anav{position:static;height:auto;border-right:0;border-bottom:1px solid var(--divider)} .abody{padding:var(--sp-4) 16px var(--sp-7)} }
+  @media (max-width:767px){ .mgrid{grid-template-columns:minmax(0,1fr)} .pane > .h .input{width:100%!important;margin-left:0!important} }
+</style>
+</head>
+<body>
+<main class="main" id="page">
+  <div class="adm">
+    <nav class="anav" id="anav" aria-label="管理后台菜单"></nav>
+    <section class="abody"><div class="bc" id="bc"></div><div id="body"></div></section>
+  </div>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, $$, icon, fmt, yuan, st, ai, member, store, img, states, toast, confirm, drawer, countUp} = OS;
+  OS.shell({active: 'admin'});
+  const A = D.admin;
+  const who = id => ai(id) ? `<span class="ai-i"><img src="${img(ai(id).img)}" alt="">${ai(id).name}</span>` : `<span class="ai-i"><span class="mf">${member(id).name[0]}</span>${member(id).name}</span>`;
+  const sw = (on, label) => `<button class="switch${on ? ' on' : ''}" role="switch" aria-checked="${on}" aria-label="${label}"></button>`;
+  const saved = () => toast('已保存', `改动记进操作记录：${OS.who.name} · 17:05`);
+
+  // ---------- 菜单（分组和页面） ----------
+  const MENU = [
+    ['数据分析', 'chart', [['overview', '总览'], ['model', '模型'], ['member', '成员'], ['aie', 'AI 员工']]],
+    ['使用记录', 'clock', [['runs', '运行记录'], ['exec', '执行记录']]],
+    ['资源管理', 'box', [['models', '大模型'], ['skills', '技能'], ['api', '店铺接口']]],
+    ['预算', 'wallet', [['budget', '预算设置'], ['ledger', '费用明细']]],
+    ['系统设置', 'gear', [['people', '成员与分组'], ['auth', '谁能批什么'], ['notify', '通知'], ['ops', '操作记录'], ['other', '其他设置']]],
+  ];
+  const IC = {
+    chart: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6.4 6.4"/></svg>',
+    clock: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    box: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7l9-4 9 4-9 4z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>',
+    wallet: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 10h18M16 15h2"/><path d="M6 6l9-3 1 3"/></svg>',
+    gear: '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>',
+  };
+  const ALL = Object.fromEntries(MENU.flatMap(([g, , ps]) => ps.map(([k, l]) => [k, [g, l]])));
+  // 旧链接兼容：#ai → AI 员工预算，#auth 不变
+  const ALIAS = {ai: 'budget', centers: 'people', members: 'people'};
+  let page = 'overview', state = '正常';
+  const open = new Set();
+  function nav(){
+    $('#anav').innerHTML = `<div class="ttl"><img src="img/logo-icon.svg" alt=""><div><b>风之岚 OS</b><span>管理后台</span></div></div>` +
+      MENU.map(([g, ic, ps]) => `<div class="grp ${open.has(g) ? 'open' : ''}"><button class="grp-b" aria-expanded="${open.has(g)}" data-g="${g}"><span class="ic">${IC[ic]}</span>${g}<span class="chev">${icon('chev', 14)}</span></button>
+        <div class="gsub">${ps.map(([k, l]) => `<a href="#${k}" class="${k === page ? 'on' : ''}" ${k === page ? 'aria-current="page"' : ''}>${l}</a>`).join('')}</div></div>`).join('');
+    $$('.grp-b').forEach(b => b.onclick = () => { open.has(b.dataset.g) ? open.delete(b.dataset.g) : open.add(b.dataset.g); nav(); });
+  }
+  function go(){
+    let h = location.hash.slice(1); h = ALIAS[h] || h;
+    page = ALL[h] ? h : 'overview';
+    open.add(ALL[page][0]);
+    nav();
+    $('#bc').innerHTML = `管理后台<span class="sep">›</span>${ALL[page][0]}<span class="sep">›</span><b>${ALL[page][1]}</b>`;
+    document.title = `风之岚 OS · ${ALL[page][1]}`;
+    render();
+  }
+  window.addEventListener('hashchange', go);
+
+  const mc = (ic, l, per, v, d) => `<div class="mc"><div class="h">${ic}${l}<small>${per}</small></div><div class="in"><b>${v}</b>${d ? `<span>${d}</span>` : ''}</div></div>`;
+  const bars = (vals, k, labels) => { const mx = Math.max(...vals); return `<div class="bars" style="--k:var(${k})">${vals.map((v, i) => `<div><i style="height:${v / mx * 100}%;animation-delay:${i * .02}s" title="${labels ? labels[i] : i + 1}：${v}"></i>${labels ? labels[i] : (i % 3 === 0 ? i + 1 : '')}</div>`).join('')}</div>`; };
+
+  const P = {
+    overview(){
+      const U = D.usage, K = D.kpi.today, S = A.modelStats;
+      return `<div class="mgrid">
+        ${mc(icon('globe', 15), '今天销售额', '截至 17:00', 'SAR ' + fmt(K.sales), K.salesD)}
+        ${mc(icon('db', 15), '今天 AI 费用', '截至 17:00', yuan(U.today.total), '')}
+        ${mc(icon('cal', 15), '本月预算剩余', '本月', '¥' + fmt(U.budget.left), U.budget.pct + '%')}
+        ${mc(icon('refresh', 15), '模型调用次数', '24 小时', S.calls[0], S.calls[1])}
+        ${mc(icon('user', 15), 'AI 员工在岗', '现在', `${D.ai.filter(a => a.status === 'on').length} / ${D.ai.length}`, '')}
+        ${mc(icon('check', 15), '今天执行的改动', '今天', D.executions.length + ' 条', '撤回 1')}
+      </div>
+      <div class="two sec"><div class="pane"><div class="h"><b>本月每天的 AI 费用</b><small>11/1–11/19</small></div><div class="in">${bars(U.trend, '--brand')}</div></div>
+        <div class="pane"><div class="h"><b>费用花在哪</b><small>本月</small></div><div class="in">
+          ${[['平台 AI 员工', U.month.platform, '--ok'], ['成员个人使用', U.month.members, '--brand']].map(([n, v, k]) => `<div class="hbar" style="--k:var(${k})"><span>${n}</span><span class="b"><i style="width:${v / U.month.total * 100}%"></i></span><b class="num">${yuan(v)}</b></div>`).join('')}
+          <p class="hint" style="margin-top:10px">${U.source}。</p></div></div></div>`;
+    },
+    model(){
+      const S = A.modelStats;
+      return `<div class="mgrid">
+        ${mc(icon('refresh', 15), '模型调用次数', '24 小时', S.calls[0], S.calls[1])}${mc(icon('arrow', 15), '输入 Token', '24 小时', S.input[0], S.input[1])}${mc(icon('back', 15), '输出 Token', '24 小时', S.output[0], S.output[1])}
+        ${mc(icon('clock', 15), '平均响应时间', '30 分钟', S.latency)}${mc(icon('clock', 15), '首字时间', '30 分钟', S.first)}${mc(icon('check', 15), '成功率', '30 分钟', S.success)}
+      </div>
+      <div class="pane sec"><div class="h"><b>模型使用分布</b><small>24 小时 · 最多列 6 个，其余合并为「其他」</small></div><div class="in">
+        ${A.models.map(m => `<div class="hbar" style="--k:var(--sug-down)"><span class="mono">${m.name}</span><span class="b"><i style="width:${m.share}%"></i></span><b class="num">${m.share}%</b></div>`).join('')}</div></div>
+      <div class="two sec"><div class="pane"><div class="h"><b>费用</b><small>本月每天</small></div><div class="in">${bars(D.usage.trend, '--brand')}</div></div>
+        <div class="pane"><div class="h"><b>调用次数</b><small>本月每天</small></div><div class="in">${bars(D.usage.trend.map(v => Math.round(v * 12.7)), '--ok')}</div></div></div>`;
+    },
+    member(){
+      const B = A.budgets.members;
+      return `<div class="pane"><div class="h"><b>成员用量</b><small>本月 · 只看用量，不排名；看人以产出为准</small></div><div class="in">
+        ${B.map(([id, used]) => `<div class="hbar" style="--k:var(--brand);grid-template-columns:minmax(0,120px) minmax(0,1fr) auto"><span>${member(id).name} <span class="t3 fs-12">${member(id).role}</span></span><span class="b"><i style="width:${used / B[0][1] * 100}%"></i></span><b class="num">${yuan(used)}</b></div>`).join('')}</div></div>
+      <p class="hint sec">成员在外部工具里的用量统计不到；sub2api 里能看到的才算。</p>`;
+    },
+    aie(){
+      return `<div class="cards">${D.ai.filter(a => a.status === 'on').map(a => `<div class="rc"><div class="t"><span class="lg"><img src="${img(a.img)}" alt=""></span><div><b style="font-family:inherit">${a.name}</b><span>${a.role} · ${a.schedule}</span></div></div>
+        <div class="kv"><span>本周运行</span><b>${a.week.runs} 次</b></div><div class="kv"><span>本周费用</span><b>${yuan(a.week.cost)}</b></div><div class="kv"><span>建议采纳</span><b>${a.week.adopt || '—'}</b></div>
+        <div class="f"><a class="btn sm" href="13-AI员工详情.html?id=${a.id}">看详情</a></div></div>`).join('')}</div>`;
+    },
+    runs(){
+      return `<div class="filters"><input class="input" placeholder="任务名称"><select class="select"><option>全部 AI 员工</option>${D.ai.filter(a => a.status === 'on').map(a => `<option>${a.name}</option>`).join('')}</select><button class="btn main sm">${icon('search', 14)}搜索</button></div>
+      <div class="card tbl-wrap"><table class="tbl"><thead><tr><th>时间</th><th>任务</th><th>AI 员工</th><th>结果</th><th></th></tr></thead><tbody>
+        ${D.tasks.map(t => `<tr><td class="num t3 nowrap">${t.time}</td><td><b>${t.name}</b>${t.store ? ' · ' + store(t.store).name : ''}<span class="sub">${t.sub}</span></td><td>${who(t.ai)}</td><td>${OS.taskSt(t.status)}</td><td class="r"><a class="btn sm ghost" href="11-运行详情.html?run=${t.run || 'R-20261119-003'}">详情</a></td></tr>`).join('')}
+      </tbody></table></div>`;
+    },
+    exec(){
+      return `<div class="card tbl-wrap"><table class="tbl"><thead><tr><th>时间</th><th>店铺</th><th>操作</th><th>对象</th><th>改前 → 改后</th><th>谁批的</th><th>状态</th></tr></thead><tbody>
+        ${D.executions.map(e => `<tr><td class="num t3">${e.time}</td><td>${store(e.store).name}</td><td>${e.op}</td><td><b>${e.target}</b>${e.undo ? `<span class="sub">${e.undo}</span>` : ''}</td><td class="mono fs-12 nowrap">${e.before} → ${e.after}</td><td>${e.by}</td><td>${OS.taskSt(e.status)}</td></tr>`).join('')}
+      </tbody></table></div><p class="hint sec">每条都由小投通过 noon 接口执行，记下改前改后的值；撤回在「运行和执行记录」页。</p>`;
+    },
+    models(){
+      return `<div class="ph"><div class="seg"><button class="on">平台模型</button><button disabled style="opacity:.45" title="首期不做">成员自带模型</button></div><div class="acts"><input class="input" placeholder="搜索模型" style="width:200px;height:34px"></div></div>
+      <div class="pane"><div class="h"><b>大语言模型</b><small>来自 sub2api，在这里只看不改；倍率和价格在 sub2api 里改</small></div>
+        <div class="cards">${A.models.map(m => `<div class="rc"><div class="t"><span class="lg">AI</span><div><b>${m.name}</b><span>${m.via}</span></div></div>
+          <div class="kv"><span>倍率</span><b>${m.rate}</b></div><div class="kv"><span>谁在用</span><b style="font-weight:400">${m.users}</b></div>
+          <div class="f">${m.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div></div>`).join('')}</div></div>`;
+    },
+    skills(){
+      return `<div class="ph"><div><p>技能从团队技能库 noon-commerce-teamai 同步，平台只记版本、不改技能本身。数字都由技能里的脚本算。</p></div><div class="acts"><button class="btn" id="sync">${icon('refresh', 14)}现在同步</button></div></div>
+      <div class="cards">${A.skills.map(s => `<div class="rc"><div class="t"><span class="lg"><img src="${img(ai(s.ai).img)}" alt=""></span><div><b>${s.name}</b><span>${ai(s.ai).name} · ${s.scenes}</span></div></div>
+        <div class="kv"><span>版本</span><b class="mono">${s.ver}</b></div><div class="kv"><span>上次同步</span><b>${s.synced}</b></div><div class="kv"><span>脚本</span><b class="mono fs-12" style="font-weight:400">${s.scripts}</b></div></div>`).join('')}</div>`;
+    },
+    api(){
+      const C = [['云屿商店 · 沙特 · 店铺接口', '广告、销售、库存；改出价、暂停、否定', '已连接', 'ok', '授权到 2027-02-18 · 17:00 同步'],
+        ['星帆商店 · 阿联酋 · 店铺接口', '广告、销售、库存；改出价、暂停、否定', '已连接', 'ok', '授权到 2027-02-18 · 17:00 同步'],
+        ['星帆商店 · 沙特 · 店铺接口', '广告、销售、库存；改出价、暂停、否定', '已连接', 'ok', '授权到 2027-02-18 · 17:00 同步'],
+        ['月砂商店 · 沙特 · 店铺接口', '广告、销售、库存；改出价、暂停、否定', '已连接', 'ok', '授权到 2027-03-02 · 17:00 同步'],
+        ['sub2api · AI 用量', '平台 AI 员工和成员的模型用量、费用', '已连接', 'ok', '每小时同步 · 17:00'],
+        ['企业微信 · 群机器人', '日报、紧急通知，发到「跨境电商工作群」', '已连接', 'ok', '上次发送 17:02'],
+        ['企业微信 · 应用消息', '一对一通知、消息里直接批准', '已连接', 'ok', '上次发送 17:02']];
+      return `<div class="pane"><div class="h"><b>接口连接</b><small>密钥只放在服务器上，这里只看连没连上、什么时候到期</small></div>
+        ${C.map(c => `<div class="cfg"><div><b>${c[0]}</b><span class="s">${c[1]}</span></div><span class="v t3 fs-12">${c[4]}</span>${st(c[2], c[3])}</div>`).join('')}
+        <p class="d" style="margin-top:10px">${icon('lock', 12)} 换密钥找技术负责人。读不到接口的访问规则时一律拒绝执行，不放行。</p></div>`;
+    },
+    budget(){
+      // 首期只有「单次运行上限」和 AI 员工每天的上限（需求文档第三节「预算控制」）；按人、按分组的预算以后再做
+      const caps = {xiaotou: ['¥2', '¥10'], xiaoxun: ['—', '¥2'], xiaoce: ['¥1', '¥5'], xiaobu: ['¥1', '¥5']};
+      const Bm = A.budgets.members, Ba = A.budgets.ai, mx = Math.max(...Bm.map(b => b[1]));
+      return `<div class="two lr"><div>
+          <div class="pane"><div class="h"><b>AI 员工的上限</b><small>超了就暂停这次运行，通知负责人</small></div>
+            ${Ba.map(([id, used]) => `<div class="cfg"><div>${who(id)}<span class="s">本月已用 ${yuan(used)}</span></div>
+              <label class="fs-12 t3">单次 <input class="input num" style="width:72px" value="${caps[id][0]}"></label><label class="fs-12 t3">每天 <input class="input num" style="width:72px" value="${caps[id][1]}"></label></div>`).join('')}</div>
+          <div class="pane sec"><div class="h"><b>成员每月预算</b><small>本月 · 到 80% 提醒本人，到 100% 提醒主管</small></div>
+            ${Bm.map(([id, used, cap]) => `<div class="hbar" style="--k:var(${used / cap > .7 ? '--wait' : '--brand'});grid-template-columns:minmax(0,120px) minmax(0,1fr) auto auto"><span>${member(id).name}</span><span class="b"><i style="width:${Math.min(100, used / cap * 100)}%"></i></span><b class="num">${yuan(used)}</b><input class="input num" style="width:84px;height:30px" value="¥${cap}" aria-label="${member(id).name}每月预算"></div>`).join('')}
+            <p class="d" style="margin-top:8px">只看用量，不排名；到上限后成员个人使用暂停，AI 员工照常。</p></div></div>
+        <div><div class="pane"><div class="h"><b>本月平台预算</b></div><p class="d">整个平台每月的 AI 费用参考线，资源核心页按它算「剩余」。</p>
+            <div class="cfg"><div><b>每月预算</b><span class="s">已用 ¥${fmt(D.usage.month.total, 2)} · 剩 ¥${fmt(D.usage.budget.left)}</span></div><input class="input num" value="¥${D.usage.budget.month}"></div>
+            <div class="cfg"><div><b>下次重置</b><span class="s">每月 1 日 00:00</span></div><span class="v">${A.budgets.next}</span></div></div>
+          <div class="pane sec"><div class="h"><b>超了以后</b></div>
+            <div class="cfg"><div><b>暂停这次运行</b><span class="s">已经算完的结果保留；负责人和主管收到企业微信</span></div>${sw(true, '超了暂停')}</div>
+            <div class="cfg"><div><b>当天用量到平台预算的 90% 提醒</b><span class="s">发给决策层和主管</span></div>${sw(true, '90% 提醒')}</div></div></div></div>`;
+    },
+    ledger(){
+      return `<div class="filters"><select class="select"><option>今天</option><option>近 7 天</option><option>本月</option></select><select class="select"><option>全部</option><option>AI 员工</option><option>成员</option></select></div>
+      <div class="card tbl-wrap"><table class="tbl"><thead><tr><th>时间</th><th>谁</th><th>做了什么</th><th>模型</th><th class="r">输入 / 输出 tokens</th><th class="r">费用</th></tr></thead><tbody>
+        ${A.ledger.map(l => `<tr><td class="num t3">${l[0]}</td><td>${who(l[1])}</td><td>${l[2]}</td><td class="mono fs-12">${l[3]}</td><td class="r num fs-12">${l[4] ? fmt(l[4]) + ' / ' + fmt(l[5]) : '<span class="t3">只跑脚本，不花钱</span>'}</td><td class="r num">${yuan(l[6])}</td></tr>`).join('')}
+      </tbody></table></div><p class="hint sec">流水只增不改。用量对不上的记录标「待核实」，不直接算钱。</p>`;
+    },
+    people(){
+      const ppl = [{id: 'boss', name: '决策层', role: '决策层', since: '2026 年 11 月 17 日'}, ...D.people.members.map(m => ({...m, since: m.id === 'm-zl' ? '2026 年 11 月 18 日' : '2026 年 11 月 17 日'}))];
+      return `<div class="two pp">
+        <div class="pane"><div class="h"><b>分组</b></div><div class="tree">
+          <a class="on">${icon('db', 14)}风之岚<span class="n">${ppl.length}</span></a>
+          ${D.centers.map(c => `<a class="sub1 ${c.on ? '' : 'off'}">${icon('globe', 14)}${c.name}<span class="n">${c.on ? c.members.length : '未接入'}</span></a>`).join('')}</div></div>
+        <div class="pane"><div class="h"><b>成员</b><input class="input" placeholder="搜索姓名或邮箱" style="width:180px;height:30px;margin-left:auto"><button class="btn main sm" id="add">${icon('plus', 14)}添加成员</button></div>
+          ${ppl.map(m => `<div class="mcard"><div class="t"><span class="mf">${m.name[0]}</span><div><b>${m.name}</b> ${m.role === '主管' ? '<span class="tag" style="--k:var(--ok)">可改设置</span>' : ''}<span class="s">${m.role === '决策层' ? '定方向、拍板超出主管授权的事' : m.role + (m.store ? ' · ' + store(m.store).name : '')}</span></div>
+            <select class="select" style="margin-left:auto;width:auto;height:30px" aria-label="${m.name}的角色">${['决策层', '主管', '运营', '采购'].map(r => `<option ${r === m.role ? 'selected' : ''}>${r}</option>`).join('')}</select></div>
+            <div class="f"><span>${m.since}加入</span><span class="tag">${m.role === '决策层' ? '全部' : '跨境电商中心'}</span></div></div>`).join('')}</div></div>`;
+    },
+    auth(){
+      return `<div class="two"><div class="pane"><div class="h"><b>运营可以直接批</b><small>初审时</small></div>
+          <div class="cfg"><div><b>单条出价改动</b><span class="s">超过就提交拍板</span></div><input class="input num" value="≤ 10%"></div>
+          ${D.authority.ops.slice(1).map(x => `<div class="cfg"><div><b>${x}</b></div>${sw(true, x)}</div>`).join('')}</div>
+        <div><div class="pane"><div class="h"><b>主管王五可以拍板</b><small>决策层授权</small></div>
+            <div class="cfg"><div><b>补货申请、测款停止或追加</b><span class="s">单笔上限，超过的给决策层</span></div><input class="input num" value="SAR 5,000"></div>
+            <div class="cfg"><div><b>广告调整</b><span class="s">先不授权，超出运营权限的都给决策层</span></div>${sw(false, '授权主管拍板广告调整')}</div></div>
+          <div class="pane sec"><div class="h"><b>决策层拍板</b></div>${D.authority.founder.map(x => `<div class="cfg"><div><b>${x}</b></div><span class="t3">${icon('lock', 14)}</span></div>`).join('')}
+            <div class="cfg"><div><b>AI 员工单次改出价上限</b><span class="s">拍板通过了也不超过这个幅度</span></div><input class="input num" value="≤ 30%"></div></div></div></div>
+      <p class="hint sec">每件事按这些规则算出拍板人，通知只发给拍板人和跟进人。改了以后从下一件事开始算。</p>`;
+    },
+    notify(){
+      const R = [['日报', '小巡每天写好推到工作群', '<input class="input num" value="15:10">'], ['每小时巡查', '看 AI 员工、成员跟进和店铺数据', sw(true, '每小时巡查')],
+        ['夜间不打扰', '这段时间只有花钱的事才打扰', '<input class="input num" value="22:00–8:00">'], ['广告组短时间花钱快却不出单', '2 小时花到日预算的多少算紧急', '<input class="input num" value="80%">'],
+        ['商品快断货', '还能卖不到几天、又过了最晚下单日', '<input class="input num" value="7 天">'], ['AI 用量', '超过当天预算的多少提醒', '<input class="input num" value="90%">']];
+      return `<div class="pane"><div class="h"><b>通知</b><small>门槛是初稿，见需求文档第七节第 7、10 条</small></div><p class="d">能等的事写进日报；要拍板又不能等的，小巡直接发企业微信给这件事的拍板人。</p>
+        ${R.map(r => `<div class="cfg"><div><b>${r[0]}</b><span class="s">${r[1]}</span></div>${r[2]}</div>`).join('')}</div>`;
+    },
+    ops(){
+      const K = {撤回: '--wait', 拍板: '--ok', 初审: '--sug-down', 执行: '--brand', 改设置: '--sug-up', 登录: '--off'};
+      return `<div class="filters"><select class="select"><option>全部操作人</option><option>决策层</option>${D.people.members.map(m => `<option>${m.name}</option>`).join('')}</select>
+        <select class="select"><option>全部类别</option>${Object.keys(K).map(k => `<option>${k}</option>`).join('')}</select><select class="select"><option>全部结果</option><option>成功</option><option>失败</option></select><select class="select"><option>近 7 天</option><option>今天</option><option>本月</option></select></div>
+      <div class="card tbl-wrap"><table class="tbl"><thead><tr><th>时间</th><th>操作人</th><th>类别</th><th>内容</th><th>结果</th><th>来源</th></tr></thead><tbody>
+        ${A.ops.map(o => `<tr><td class="num t3 nowrap">${o[0]}</td><td>${who(o[1])}</td><td><span class="tag" style="--k:var(${K[o[2]]})">${o[2]}</span></td><td>${o[3]}</td><td>${o[4] === '失败' ? st('失败', 'err') : `<span class="fs-13">${o[4]}</span>`}</td><td class="t3 fs-12">${o[5]}</td></tr>`).join('')}
+      </tbody></table></div><p class="hint sec">只增不改。筛选条件会写进网址，发给别人能看到同样的结果。</p>`;
+    },
+    other(){
+      return `<div class="pane"><div class="h"><b>品牌信息</b></div>
+          <div class="two" style="padding:4px"><label class="field"><span>团队名称</span><input class="input" value="风之岚"></label><label class="field"><span>平台名称</span><input class="input" value="风之岚 OS"></label></div>
+          <div style="padding:0 4px 4px"><span class="fs-13 t2">Logo</span><div style="margin-top:8px;width:64px;height:64px;border-radius:14px;background:var(--surface-2);display:grid;place-items:center"><img src="img/logo-icon.svg" alt="" style="width:44px"></div></div></div>
+        <div class="pane sec"><div class="h"><b>登录方式</b></div><p class="d">账号由决策层或主管开，不开放自己注册。</p>
+          <div class="cfg"><div><b>账号密码登录</b></div>${sw(true, '账号密码登录')}</div>
+          <div class="cfg"><div><b>企业微信扫码登录</b><span class="s">按企业微信 userid 对应成员</span></div>${sw(true, '企业微信扫码登录')}</div>
+          <div class="cfg"><div><b>新成员自己注册</b><span class="s">关闭：只能由决策层或主管添加</span></div>${sw(false, '新成员自己注册')}</div></div>
+        <div class="pane sec"><div class="h"><b>中心</b></div>
+          ${D.centers.map(c => `<div class="cfg"><div><b>${c.name}</b><span class="s">${c.on ? '云屿商店、星帆商店、月砂商店（4 个站点）' : '还没接入'}</span></div>${c.on ? st('已接入', 'ok') : st(c.later, 'off')}</div>`).join('')}</div>
+        <div class="pane sec"><div class="h"><b>关于</b></div><p class="d">风之岚 OS · 界面字体使用小米 MiSans 字体（MiSans 字体知识产权许可协议）。</p></div>`;
+    },
+  };
+
+  function render(s = state){
+    state = s;
+    const B = $('#body');
+    if (OS.who.role === '运营') return B.innerHTML = states.empty({img: 'empty-task.webp', title: '管理后台只对决策层和主管开放', text: '要改权限、预算或通知，找王五（主管）。', act: `<a class="btn" href="${OS.withAs('03-组织树.html')}">回首页</a>`});
+    if (s === '加载中') return B.innerHTML = `<div class="mgrid">${'<div class="skel" style="height:110px"></div>'.repeat(3)}</div><div class="skel sec" style="height:220px"></div>`;
+    if (s === '出错') return B.innerHTML = states.error({what: `「${ALL[page][1]}」没加载出来`, why: '服务器暂时连不上'});
+    if (s === '没有数据' && ['overview', 'model', 'member', 'ledger', 'runs', 'exec', 'ops'].includes(page)) return B.innerHTML = `<div class="pane"><div class="in" style="text-align:center;padding:48px;color:var(--text-3)">当前筛选范围内暂无数据。</div></div>`;
+    B.innerHTML = P[page]();
+    countUp(B);
+    $$('.cfg .input, .tbl .select, .mcard .select', B).forEach(el => el.onchange = saved);
+    $$('.switch', B).forEach(el => el.addEventListener('change', saved));
+    if ($('#sync')) $('#sync').onclick = () => toast('已同步', '技能库没有新版本。');
+    if ($('#add')) $('#add').onclick = () => { const d = drawer({sub: '成员与分组', title: '添加成员', body: `
+      <label class="field"><span>姓名</span><input class="input" placeholder="孙七"></label><label class="field"><span>工作邮箱</span><input class="input" placeholder="name@example.com"></label>
+      <label class="field"><span>角色</span><select class="select"><option>运营</option><option>采购</option><option>主管</option></select></label>
+      <label class="field"><span>负责店铺</span><select class="select"><option>云屿商店 · 沙特</option><option>星帆商店 · 阿联酋</option><option>星帆商店 · 沙特</option><option>月砂商店 · 沙特</option><option>不负责店铺</option></select></label>
+      <p class="hint">保存后生成初始密码，当面或私聊发给他；第一次登录要改密码。</p>`, foot: '<span class="sp"></span><button class="btn main" id="sv">添加</button>'});
+      $('#sv').onclick = () => { d.close(); toast('已添加', '操作记录里记了一条。'); }; };
+  }
+  OS.demo({onState: render});
+  go();
+</script>
+</body>
+</html>

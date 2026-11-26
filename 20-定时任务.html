@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="img/logo-icon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&display=swap" rel="stylesheet">
+<title>风之岚 OS · 定时任务</title>
+<!-- P20 定时任务（2026-11-20）：中心侧栏「任务」下面。上面是今天 15:00 每日巡检这条流水线（前一步没跑完，后面的等着），下面是所有定时。
+     运营只能看；主管、决策层能改时间、暂停，改动记进操作记录。首期不开放新加定时。各 AI 员工工作台的「定时」页签只列它自己的。 -->
+<link rel="stylesheet" href="assets/tokens.css">
+<script src="assets/theme.js"></script>
+<link rel="stylesheet" href="assets/base.css">
+<link rel="stylesheet" href="assets/components.css">
+<link rel="stylesheet" href="assets/topbar.css">
+<link rel="stylesheet" href="assets/schedule.css">
+</head>
+<body>
+<main class="main" id="page">
+  <div class="page-h"><div><h1>定时任务</h1><div class="sub">跨境电商中心每天怎么自己转起来：到点拉数据、AI 员工接力干活、小巡写日报</div></div>
+    <div class="acts"><button class="btn main" id="add">+ 新加定时</button></div></div>
+  <section class="card pad" id="today"></section>
+  <section class="card section"><div class="card-h"><h3>所有定时</h3><span class="more" id="who"></span></div><div class="card-b" id="list"></div></section>
+  <p class="hint section">失败了怎么办：拉数据失败，后面几步都等着，工作群里提醒负责的运营上传后台导出的文件，传完从断的地方接着跑；某个 AI 员工自己失败，不影响别人，小巡下一次巡查会再提醒。</p>
+</main>
+<script src="assets/data.js"></script>
+<script src="assets/app.js"></script>
+<script>
+  const {D, $, states} = OS;
+  OS.shell({active: 'tasks', side: 'sched'});
+  $('#add').onclick = () => {
+    if (OS.who.role === '运营') return OS.toast('只有主管和决策层能加', '想加什么定时，跟王五说。', 'err');
+    const on = D.ai.filter(a => a.status === 'on');
+    const d = OS.drawer({sub: '定时任务', title: '新加定时', body: `
+      <label class="field"><span>交给谁</span><select class="select" id="na">${on.map(a => `<option value="${a.id}">${a.name} · ${a.role}</option>`).join('')}</select></label>
+      <label class="field"><span>做什么</span><select class="select" id="ns"></select></label>
+      <label class="field"><span>哪个店铺</span><select class="select"><option>云屿商店 · 沙特</option><option>星帆商店 · 阿联酋</option><option>星帆商店 · 沙特</option><option>月砂商店 · 沙特</option><option>全部站点</option></select></label>
+      <label class="field"><span>什么时候</span><div class="grid g2" style="gap:8px"><select class="select"><option>每天</option><option>每周日</option><option>每周四</option><option>每月 1 日</option><option>每小时</option></select><input class="input num" value="15:20"></div></label>
+      <label class="field"><span>接在谁后面</span><select class="select"><option>不接（到点就跑）</option><option>拉数据之后</option><option>小投复盘之后</option></select><span class="hint">接在每日巡检后面的，上一步没跑完会等着</span></label>
+      <label class="field"><span>失败时提醒谁</span><select class="select">${D.people.members.map(m => `<option>${m.name}</option>`).join('')}</select></label>
+      <p class="hint">改线上、花钱的事照样只出建议，走初审和拍板。</p>`, foot: '<span class="sp"></span><button class="btn main" id="ok">加上</button>'});
+    const fill = () => { $('#ns').innerHTML = OS.ai($('#na').value).scenes.map(x => `<option>${x}</option>`).join(''); };
+    $('#na').onchange = fill; fill();
+    $('#ok').onclick = () => { d.close(); OS.toast('已加上', `改动记进操作记录：${OS.who.name} · 17:05`); };
+  };
+  function render(state = '正常'){
+    const T = $('#today'), L = $('#list');
+    $('#who').textContent = OS.who.role === '运营' ? '你是运营，只能看；主管和决策层能改' : '你可以改时间、暂停；改动记进操作记录';
+    if (state === '加载中') { T.innerHTML = '<div class="skel" style="height:120px"></div>'; L.innerHTML = states.loading(5); return; }
+    if (state === '没有数据') { T.innerHTML = states.empty({img: 'empty-task.webp', title: '还没有定时', text: '接上 noon 接口后，每日巡检会自动排好：15:00 拉数据，小投、小补、小测接力，15:10 小巡写日报。'}); L.innerHTML = ''; return; }
+    const fail = state === '出错' ? 0 : -1;
+    T.innerHTML = `<div class="row" style="margin-bottom:var(--sp-4)"><h3>今天 15:00 的每日巡检</h3><span class="sp"></span>${fail < 0 ? OS.st('全部完成 · 15:10', 'ok') : OS.st('拉数据失败 · 后面等着', 'err')}</div>${OS.schedChain({fail})}`;
+    L.innerHTML = OS.schedList();
+    OS.bindSched(L);
+  }
+  OS.demo({onState: render});
+</script>
+</body>
+</html>
